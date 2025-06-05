@@ -266,14 +266,17 @@ void APPGEN_Tasks(void) {
                        ret = GetMessage((int8_t*)appgenData.RxBuffer,&RemoteParamGen,&appgenData.SaveTodo);
                        if(ret)
                        {
-                           ret = 1;
+                           SendMessage((int8_t*)appgenData.TxBuffer, &RemoteParamGen, &appgenData.SaveTodo);
+
+                           setTCPData(appgenData.TxBuffer, appgenData.txSize);
+ 
                        }
                        else
                        {
                            ret = 0;
                        }
                    }
-                MENU_Execute(&LocalParamGen);
+                MENU_Execute(&RemoteParamGen);
             }
             else
             {
@@ -361,11 +364,11 @@ void APPGEN_Tasks(void) {
 // Fonction d'envoi d'un  message
 // Rempli le tampon d'émission pour USB en fonction des paramètres du générateur
 // Format du message
-// !S=TF=2000A=10000O=+5000D=25WP=0#
+// !S=TF=0020A=0100O=+5000D=25WP=0#
 // !S=TF=2000A=10000O=+5000D=25WP=1#    // ack sauvegarde
  
  
-void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, uint8_t *Saved )
+void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, bool *Saved)
 {
     char formeSignal;   
     if(pParam->Forme == SignalSinus)

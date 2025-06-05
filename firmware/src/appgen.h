@@ -136,9 +136,9 @@ typedef enum
 
 	/* Application's state machine's initial state. */
 
-	MESSAGE_INVALIDE=1,
+	MESSAGE_INVALIDE=0,
 
-	MESSAGE_VALIDE=0,
+	MESSAGE_VALIDE=1,
 
 	/* TODO: Define states used by the application state machine. */
 
@@ -219,7 +219,7 @@ void App_Timer3Callback();
 void APPGEN_Initialize ( void );
 void APP_SET_REMOTE(uint8_t state);
 bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo);
-void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, uint8_t *Saved );
+void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, bool *Saved );
 void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size);
 /*******************************************************************************
   Function:

@@ -178,6 +178,7 @@ typedef enum
 
 void APP_Initialize ( void );
 void APP_UpdateTCPData(uint8_t * newData, uint8_t size);
+void setTCPData(uint8_t *appdata, uint8_t txSize);
 
 
 

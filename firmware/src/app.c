@@ -252,6 +252,7 @@ void APP_Tasks ( void )
             {
                 appData.state = APP_TCPIP_CLOSING_CONNECTION;
                 SYS_CONSOLE_MESSAGE("Connection was closed\r\n");
+                APP_SET_REMOTE(REMOTE_OFF);
                 //lcd_gotoxy(1,4); 
                 //printf_lcd("Connection was closed");
                 
@@ -299,11 +300,13 @@ void APP_Tasks ( void )
                 }
 
                 //maj data app
+               // TCPIP_TCP_ArrayGet(appData.socket,&appData.SendBuffer, sizeof(AppBuffer));
                 
                 // Transfer the data out of our local processing buffer and into the TCP TX FIFO.
                 SYS_CONSOLE_PRINT("Server Sending %s\r\n", AppBuffer);
-                TCPIP_TCP_ArrayPut(appData.socket, AppBuffer, wCurrentChunk);
-
+                TCPIP_TCP_ArrayPut(appData.socket, appData.SendBuffer, wCurrentChunk);
+               
+               
                 // No need to perform any flush.  TCP data in TX FIFO will automatically transmit itself after it accumulates for a while.  If you want to decrease latency (at the expense of wasting network bandwidth on TCP overhead), perform and explicit flush via the TCPFlush() API.
             }
         }
@@ -326,6 +329,17 @@ void APP_UpdateTCPData(uint8_t * newData, uint8_t size)
 {
     appData.newTxData = true;  
     memcpy(appData.SendBuffer, newData, size);
+}
+
+void setTCPData(uint8_t *appdata, uint8_t txSize)
+{
+    static uint8_t i = 0;
+    appData.newTxData = true;
+    //memcpy(appData.SendBuffer, appdata, txSize);
+    for (i=0 ; i<txSize ; i++)
+    {
+        appData.SendBuffer[i] = appdata[i];
+    }
 }
 
 
