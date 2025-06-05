@@ -192,6 +192,7 @@ void APPGEN_Initialize ( void )
  */
 
 void APPGEN_Tasks(void) {
+    uint16_t ret;
     // V?rifie l'?tat courant de l'application
     switch (appgenData.state) {
         case APPGEN_STATE_INIT:
@@ -227,6 +228,11 @@ void APPGEN_Tasks(void) {
             DRV_TMR1_Initialize();
             DRV_TMR0_Start();
             DRV_TMR1_Start();
+            
+            
+            
+            appgenData.rxSize = 64;
+            appgenData.txSize = 64;
 
             // Passe ? l'?tat d'attente init
             appgenData.state = APPGEN_STATE_INIT_WAIT;
@@ -250,10 +256,31 @@ void APPGEN_Tasks(void) {
 
         case APPGEN_STATE_SERVICE_TASKS:
             // Bascule une LED (LED_2) pour indiquer un cycle de service
+            
             BSP_LEDToggle(BSP_LED_2);
-
-            // Ex?cute le menu
-            MENU_Execute(&LocalParamGen);
+            APP_UpdateTCPData(appgenData.RxBuffer, appgenData.rxSize);
+            if(appgenData.remote == REMOTE_ON)
+            {
+                if (appgenData.newData)
+                   {
+                       ret = GetMessage((int8_t*)appgenData.RxBuffer,&RemoteParamGen,&appgenData.SaveTodo);
+                       if(ret)
+                       {
+                           ret = 1;
+                       }
+                       else
+                       {
+                           ret = 0;
+                       }
+                   }
+                MENU_Execute(&LocalParamGen);
+            }
+            else
+            {
+              // Ex?cute le menu
+                MENU_Execute(&LocalParamGen);  
+            }
+            
 
             // Une fois fait, repasse en mode attente
             appgenData.state = APPGEN_STATE_WAIT;
@@ -268,8 +295,125 @@ void APPGEN_Tasks(void) {
     }
 }
 
+  void APP_SET_REMOTE(uint8_t state)
+{
+    appgenData.remote = state;
  
+}
 
+  bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo) {
+ 
+        //Déclaration de variables
+    char *pt_Forme = 0;
+    char *pt_Frequence = 0;
+    char *pt_Amplitude = 0;
+    char *pt_Offset = 0;
+    char *pt_Sauvegarde = 0;
+    // Recherche des différents paramètres dans le buffer reçu
+    pt_Forme = strstr((char*)USBReadBuffer, "S");
+    pt_Frequence = strstr((char*)USBReadBuffer, "F");
+    pt_Amplitude = strstr((char*)USBReadBuffer, "A");
+    pt_Offset = strstr((char*)USBReadBuffer, "O");
+    pt_Sauvegarde = strstr((char*)USBReadBuffer, "W");
+    // Vérifie si le message commence par '!'
+    if (USBReadBuffer[0] == '!') 
+    {
+        // Identification de la forme du signal
+        switch (*(pt_Forme + 2)) // On pourrait remplacer le décalage 2 par une constante
+        {
+            case 'T':
+                pParam->Forme = SignalTriangle;
+                break;
+            case 'S':
+                pParam->Forme = SignalSinus;
+                break;
+            case 'C':
+                pParam->Forme = SignalCarre;
+                break;
+            case 'D':
+                pParam->Forme = SignalDentDeScie;
+                break;
+            default:
+                break;
+        }
+        // Mise à jour des paramètres à partir du message reçu
+        pParam->Frequence = atoi(pt_Frequence + 2); // Décalage de 2 pour ignorer 'F='
+        pParam->Amplitude = atoi(pt_Amplitude + 2); // Décalage de 2 pour ignorer 'A='
+        pParam->Offset = atoi(pt_Offset + 2); 	    // Décalage de 2 pour ignorer 'O='
+        *SaveTodo = atoi(pt_Sauvegarde + 2); 	    // Décalage de 2 pour ignorer 'W='
+        pParam->Magic =MAGIC;
+        // Si la sauvegarde est demandée, écrire les paramètres dans la SEEPROM
+            if (*SaveTodo == 1)
+            {
+              // I2C_WriteSEEPROM((uint32_t*)pParam, 0x00, sizeof(S_ParamGen));
+               // NVM_WriteBlock((uint32_t*)pParam, sizeof (S_ParamGen));
+              MENU_DemandeSave();
+            }
+        return MESSAGE_VALIDE; 	//La lecture a aboutie
+    }
+    else
+    {
+        return MESSAGE_INVALIDE;	//La lecture a  aboutie
+    }
+} // GetMessage
+ 
+ 
+// Fonction d'envoi d'un  message
+// Rempli le tampon d'émission pour USB en fonction des paramètres du générateur
+// Format du message
+// !S=TF=2000A=10000O=+5000D=25WP=0#
+// !S=TF=2000A=10000O=+5000D=25WP=1#    // ack sauvegarde
+ 
+ 
+void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, uint8_t *Saved )
+{
+    char formeSignal;   
+    if(pParam->Forme == SignalSinus)
+    {
+        formeSignal = 'S';
+    }
+    else if(pParam->Forme == SignalTriangle)
+    {
+        formeSignal ='T';
+    }
+    else if(pParam->Forme == SignalDentDeScie)
+    {
+        formeSignal = 'D';
+    }
+    else
+    {
+        formeSignal = 'C';
+    }
+    if(pParam->Offset >0)
+    {
+        sprintf((char*)USBSendBuffer,"!S=%cF=%dA=%dO=+%dWP=%d#", formeSignal, pParam->Frequence,pParam->Amplitude, pParam->Offset, *Saved);
+        *Saved = 0;
+    }
+    else
+    {
+        sprintf((char*)USBSendBuffer,"!S=%cF=%dA=%dO=-%dWP=%d#", formeSignal, pParam->Frequence,pParam->Amplitude, pParam->Offset, *Saved);       
+        *Saved = 0;
+    }
+} // SendMessage
+
+void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size)
+{
+    appgenData.newData = true;  
+    memcpy(appgenData.RxBuffer, newData, size);
+}
+
+void MENU_DemandeSave(void)
+{
+    uint8_t line;
+    // Nettoyer les lignes 1 à 4 de l'écran LCD
+    for (line = 1; line <= 4; line++) 
+    {
+        lcd_ClearLine(line);
+    }
+
+    lcd_gotoxy(1, 2);          // Positionner le curseur en ligne 2, colonne 1
+    printf_lcd("    Sauvegarde OK");  
+}
 /*******************************************************************************
  End of File
  */

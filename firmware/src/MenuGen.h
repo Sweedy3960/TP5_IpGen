@@ -12,6 +12,16 @@
 #include <stdint.h>      // Définitions des types entiers standardisés
 #include "DefMenuGen.h"  // Structure des paramètres du générateur (S_ParamGen) et états du menu
 
+
+
+
+ 
+//typedef enum  { SignalSinus, SignalTriangle, SignalDentDeScie, SignalCarre } E_FormesSignal;
+ 
+// Structure des paramètres du générateur
+
+void MENU_DemandeSave(void);
+ 
 /**
  * @name MENU_Initialize
  * @brief Initialise les paramètres et affiche l'état initial du menu.

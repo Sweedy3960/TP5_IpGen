@@ -118,7 +118,18 @@ typedef struct
  
     TCP_SOCKET              socket;
     TCP_OPTION_KEEP_ALIVE_DATA keepAlive ;
+    bool newTxData;
+    uint8_t SendBuffer[64];
 } APP_DATA;
+
+typedef enum
+{
+	/* Application's state machine's initial state. */
+    REMOTE_OFF =0,
+    REMOTE_ON =1,        
+	/* TODO: Define states used by the application state machine. */
+ 
+} REMOTE_STATES;
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Callback Routines
@@ -166,6 +177,8 @@ typedef struct
 */
 
 void APP_Initialize ( void );
+void APP_UpdateTCPData(uint8_t * newData, uint8_t size);
+
 
 
 /*******************************************************************************

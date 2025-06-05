@@ -241,6 +241,7 @@ void APP_Tasks ( void )
                 SYS_CONSOLE_MESSAGE("Received a connection\r\n");
                 //lcd_gotoxy(1,4); 
                 //printf_lcd("Received a connection");
+                APP_SET_REMOTE(REMOTE_ON);
             }
         }
         break;
@@ -253,6 +254,7 @@ void APP_Tasks ( void )
                 SYS_CONSOLE_MESSAGE("Connection was closed\r\n");
                 //lcd_gotoxy(1,4); 
                 //printf_lcd("Connection was closed");
+                
                 break;
             }
             int16_t wMaxGet, wMaxPut, wCurrentChunk;
@@ -279,7 +281,7 @@ void APP_Tasks ( void )
                 // Transfer the data out of the TCP RX FIFO and into our local processing buffer.
                 TCPIP_TCP_ArrayGet(appData.socket, AppBuffer, wCurrentChunk);
                 //maj data appgen 
-                
+                APP_GEN_UpdateGenData(AppBuffer, sizeof(AppBuffer));
                 // Perform the "ToUpper" operation on each data byte
                 for(w2 = 0; w2 < wCurrentChunk; w2++)
                 {
@@ -320,7 +322,13 @@ void APP_Tasks ( void )
     }
 }
 
- 
+void APP_UpdateTCPData(uint8_t * newData, uint8_t size)
+{
+    appData.newTxData = true;  
+    memcpy(appData.SendBuffer, newData, size);
+}
+
+
 
 /*******************************************************************************
  End of File

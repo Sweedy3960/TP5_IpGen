@@ -58,6 +58,7 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #include <stdlib.h>
 #include "system_config.h"
 #include "system_definitions.h"
+#include "DefMenuGen.h"
 
 // DOM-IGNORE-BEGIN
 #ifdef __cplusplus  // Provide C++ Compatibility
@@ -119,8 +120,30 @@ typedef struct
     APPGEN_STATES state;
 
     /* TODO: Define any additional data used by the application. */
+    uint8_t remote;
+    uint8_t TxBuffer[64];
+    uint8_t RxBuffer[64];
+    uint8_t rxSize;
+    uint8_t txSize;   
+    bool SaveTodo;
+    bool newData;
 
 } APPGEN_DATA;
+
+typedef enum
+
+{
+
+	/* Application's state machine's initial state. */
+
+	MESSAGE_INVALIDE=1,
+
+	MESSAGE_VALIDE=0,
+
+	/* TODO: Define states used by the application state machine. */
+
+} MSG_STATUS;
+ 
 
 
 // *****************************************************************************
@@ -194,8 +217,10 @@ void App_Timer3Callback();
 */
 
 void APPGEN_Initialize ( void );
-
-
+void APP_SET_REMOTE(uint8_t state);
+bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo);
+void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, uint8_t *Saved );
+void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size);
 /*******************************************************************************
   Function:
     void APPGEN_Tasks ( void )
