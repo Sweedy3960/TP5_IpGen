@@ -1,0 +1,108 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      The target system is: Generic -  - 
+      The host system is: Windows - 10.0.26100 - 
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: c:/Program Files/Microchip/xc32/v2.50/bin/xc32-gcc.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      c:\\program files\\microchip\\xc32\\v2.50\\bin\\bin\\gcc\\pic32mx\\4.8.3\\..\\..\\..\\..\\bin/pic32m-ld.exe: warning: cannot find entry symbol _reset; defaulting to 9d000000
+      
+      Info: Loading file: ./c:/program files/microchip/xc32/v2.50/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/./ldscripts/elf32pic32mx.x
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/3.30.3/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: c:/Program Files/Microchip/xc32/v2.50/bin/xc32-g++.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      c:\\program files\\microchip\\xc32\\v2.50\\bin\\bin\\gcc\\pic32mx\\4.8.3\\..\\..\\..\\..\\bin/pic32m-ld.exe: warning: cannot find entry symbol _reset; defaulting to 9d000000
+      
+      Info: Loading file: ./c:/program files/microchip/xc32/v2.50/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/./ldscripts/elf32pic32mx.x
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/3.30.3/CompilerIdCXX/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerId.cmake:1192 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineASMCompiler.cmake:135 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      pic32m-gcc.exe (Microchip Technology) 4.8.3 MPLAB XC32 Compiler v2.50 Build date: Aug 29 2020
+      Part support version: 2. 5 (A)
+      Copyright (C) 2013 Free Software Foundation, Inc.
+      This is free software; see the source for copying conditions.  There is NO
+      warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/Internal/FeatureTesting.cmake:34 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/Internal/FeatureTesting.cmake:87 (_record_compiler_features)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/Compiler/CMakeCommonCompilerMacros.cmake:124 (_record_compiler_features_cxx)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeDetermineCompilerSupport.cmake:70 (cmake_record_cxx_compile_features)"
+      - "C:/Program Files/CMake/share/cmake-3.30/Modules/CMakeTestCXXCompiler.cmake:83 (CMAKE_DETERMINE_COMPILER_SUPPORT)"
+      - "CMakeLists.txt:17 (project)"
+    checks:
+      - "Detecting CXX compile features"
+    directories:
+      source: "C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/CMakeScratch/TryCompile-hbq16i"
+      binary: "C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/CMakeScratch/TryCompile-hbq16i"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_USER_MAKE_RULES_OVERRIDE: "C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/cmake/TP5_IpGeN/config_1/.generated/overrides.cmake"
+    buildResult:
+      variable: "CMAKE_CXX_FEATURE_TEST"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/CMakeScratch/TryCompile-hbq16i'
+        
+        Run Build Command(s): C:/Users/aymer/.mplab/app-finder/apps/ninja/v1.12.1/ninja.exe -v cmTC_7ac47
+        [1/2] c:\\PROGRA~1\\MICROC~1\\xc32\\v2.50\\bin\\XC32-G~1.EXE   -std=c++1y -o CMakeFiles/cmTC_7ac47.dir/feature_tests.cxx.obj -c C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/CMakeScratch/TryCompile-hbq16i/feature_tests.cxx
+        FAILED: CMakeFiles/cmTC_7ac47.dir/feature_tests.cxx.obj 
+        c:\\PROGRA~1\\MICROC~1\\xc32\\v2.50\\bin\\XC32-G~1.EXE   -std=c++1y -o CMakeFiles/cmTC_7ac47.dir/feature_tests.cxx.obj -c C:/microchip/harmony/v2_06/apps/tcpip/TP5_IpGen/_build/TP5_IpGeN/config_1/CMakeFiles/CMakeScratch/TryCompile-hbq16i/feature_tests.cxx
+        ninja: build stopped: subcommand failed.
+        
+      exitCode: 1
+...

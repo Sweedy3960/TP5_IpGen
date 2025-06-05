@@ -1,0 +1,7 @@
+{
+    "mplab.clangd.arguments": [
+        "--compile-commands-dir=${workspaceRoot}\\_build\\TP5_IpGeN\\pic32mx_eth_sk2"
+    ],
+    "mplab.clangd.path": "",
+    "C_Cpp.intelliSenseEngine": "disabled"
+}
