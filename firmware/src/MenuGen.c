@@ -27,7 +27,8 @@
 // ================================
 
 S_ParamGen pParamSave; // Stores saved parameters (paramètres sauvegardés)
-
+uint8_t saveUSBRequest;
+const char forme[4][21] = {"Sinus", "Triangle", "DentDeScie", "Carre"};
 // ================================
 // Fonctions
 // ================================
@@ -40,8 +41,21 @@ S_ParamGen pParamSave; // Stores saved parameters (paramètres sauvegardés)
  * Remarque : Cette fonction est prévue pour initialiser les paramètres du menu.
  *            Actuellement, elle est vide et peut être complétée selon les besoins.
  */
-void MENU_Initialize(S_ParamGen *pParam) {
-    // (Ligne vide, aucune logique pour le moment)
+void MENU_Initialize(S_ParamGen *pParam, bool local)
+{
+    char car = (local) ? '*' : '#';
+  
+    lcd_gotoxy(1, 1);
+    printf_lcd("%cForme = %10s", car, forme[pParam->Forme]);
+
+    lcd_gotoxy(1, 2);
+    printf_lcd("%cFreq [Hz] = %4d", car, pParam->Frequence);
+
+    lcd_gotoxy(1, 3);
+    printf_lcd("%cAmpl [mV] = %5d", car, pParam->Amplitude);
+
+    lcd_gotoxy(1, 4);
+    printf_lcd("%cOffset[mV]= %5d", car, pParam->Offset);
 }
 
 // -------------------------------------------------------------------
@@ -111,339 +125,296 @@ void MENU_Display(S_ParamGen *pParam, uint8_t menu) {
  * - Édition des valeurs (via rotation du codeur)
  * - Sauvegarde ou annulation
  */
-void MENU_Execute(S_ParamGen *pParam) {
-    static MenuState_t menu = MENU_INIT; // État courant du menu, initialisé à MENU_INIT
-    static uint8_t saveOk = 0; // Flag indiquant si la sauvegarde est validée (1) ou annulée (0)
-    static uint8_t RefreshMenu = 0; // Flag pour redessiner le menu
-    static uint8_t wait2s = 0; // Compteur pour gérer l'affichage temporaire (ex: 2 secondes)
-
-    // Machine à états du menu
-    switch (menu) {
-        case MENU_INIT: // État d'initialisation
-            NVM_ReadBlock((uint32_t*) & pParamSave, sizeof (S_ParamGen)); // Lecture des paramètres en NVM
-            // Test si la valeur Magic est correcte (vérifie l'intégrité)
-            if (pParamSave.Magic == MAGIC) {
-                // Si valide, on récupère les valeurs sauvegardées
-                *pParam = pParamSave;
-            } else {
-                // Sinon, on initialise les paramètres par défaut
-                pParam->Amplitude = 0;
-                pParam->Forme = SignalSinus;
-                pParam->Frequence = 20;
-                pParam->Magic = MAGIC;
-                pParam->Offset = 0;
-            }
-            GENSIG_UpdatePeriode(pParam);
-            GENSIG_UpdateSignal(pParam);
-            MENU_Display(pParam, MENU_FORME_SEL); // Affiche le menu initial (forme sélectionnée)
-            menu = MENU_FORME_SEL; // Passe à l'état MENU_FORME_SEL
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_FORME_SEL: // État de sélection de la forme d'onde
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_FORME_SEL); // Redessine l'écran avec le nouvel état
-            }
-            if (Pec12IsPlus()) { // Si rotation du codeur (incrément)
-                menu = MENU_FREQ_SEL; // Passe à la sélection de la fréquence
-                RefreshMenu = 1; // Signale la nécessité de rafraîchir l'affichage
-                Pec12ClearPlus(); // Réinitialise l'événement d'incrément
-            }
-            if (Pec12IsMinus()) { // Si rotation du codeur (décrément)
-                menu = MENU_OFFSET_SEL; // Passe à la sélection de l'offset
-                RefreshMenu = 1; // Besoin de rafraîchir l'affichage
-                Pec12ClearMinus(); // Réinitialise l'événement de décrément
-            }
-            if (Pec12IsOK()) { // Si appui court sur le codeur
-                menu = MENU_FORME_EDIT; // Passe en mode édition de la forme
-                pParamSave = *pParam; // Sauvegarde temporaire du paramètre actuel
-                RefreshMenu = 1; // Besoin de rafraîchir l'affichage
-                Pec12ClearOK(); // Réinitialise l'événement OK
-            }
-            if (S9IsOK()) { // Si appui sur le bouton S9 (OK)
-                menu = MENU_SAUVEGARDE; // Passe directement au menu de sauvegarde
-                RefreshMenu = 1; // Besoin de rafraîchir l'affichage
-                S9ClearOK(); // Réinitialise l'événement OK de S9
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_FORME_EDIT: // État d'édition de la forme d'onde
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_FORME_EDIT); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Si rotation incrément
-                pParam->Forme = (pParam->Forme + 1) % 4; // Passe à la forme suivante (en mod 4)
-                RefreshMenu = 1; // Besoin d'un rafraîchissement
-                Pec12ClearPlus(); // Réinitialise l'événement
-            }
-            if (Pec12IsMinus()) { // Si rotation décrément
-                pParam->Forme = (pParam->Forme - 1 + 4) % 4; // Passe à la forme précédente (en mod 4)
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise l'événement
-            }
-            if (Pec12IsOK()) { // Si appui court (validation)
-                menu = MENU_FORME_SEL; // Retourne à la sélection
-                GENSIG_UpdateSignal(pParam);
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise l'événement
-            }
-            if (Pec12IsESC()) { // Si appui long (annulation)
-                menu = MENU_FORME_SEL; // Retourne à la sélection
-                pParam->Forme = pParamSave.Forme; // Restaure la forme précédente
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearESC(); // Réinitialise l'événement
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_FREQ_SEL: // État de sélection de la fréquence
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_FREQ_SEL); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                menu = MENU_AMPL_SEL; // Passe à la sélection de l'amplitude
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise l'événement
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                menu = MENU_FORME_SEL; // Retourne à la sélection de la forme
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise l'événement
-            }
-            if (Pec12IsOK()) { // Appui court
-                menu = MENU_FREQ_EDIT; // Passe en édition de la fréquence
-                pParamSave = *pParam; // Sauvegarde temporaire
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise l'événement
-            }
-            if (S9IsOK()) { // Appui sur le bouton S9
-                menu = MENU_SAUVEGARDE; // Passe au menu de sauvegarde
-                RefreshMenu = 1; // Besoin de rafraîchir
-                S9ClearOK(); // Réinitialise l'événement
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_FREQ_EDIT: // État d'édition de la fréquence
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_FREQ_EDIT); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                pParam->Frequence += 20; // Incrémente la fréquence de 20 Hz
-                if (pParam->Frequence > 2000) { // Si dépasse 2000 Hz
-                    pParam->Frequence = 20; // Reboucle à 20 Hz
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise l'événement
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                pParam->Frequence -= 20; // Décrémente la fréquence de 20 Hz
-                if (pParam->Frequence < 20) { // Si descend en dessous de 20 Hz
-                    pParam->Frequence = 2000; // Reboucle à 2000 Hz
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise l'événement
-            }
-            if (Pec12IsOK()) { // Appui court (validation)
-                menu = MENU_FREQ_SEL; // Retourne à la sélection
-                GENSIG_UpdatePeriode(pParam);
-                GENSIG_UpdateSignal(pParam);
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise
-            }
-            if (Pec12IsESC()) { // Appui long (annulation)
-                menu = MENU_FREQ_SEL; // Retourne à la sélection
-                pParam->Frequence = pParamSave.Frequence; // Restaure la valeur précédente
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearESC(); // Réinitialise
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_AMPL_SEL: // État de sélection de l'amplitude
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_AMPL_SEL); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                menu = MENU_OFFSET_SEL; // Passe à la sélection de l'offset
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                menu = MENU_FREQ_SEL; // Retourne à la sélection de la fréquence
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise
-            }
-            if (Pec12IsOK()) { // Appui court
-                menu = MENU_AMPL_EDIT; // Passe en édition de l'amplitude
-                pParamSave = *pParam; // Sauvegarde temporaire
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise
-            }
-            if (S9IsOK()) { // Appui sur S9
-                menu = MENU_SAUVEGARDE; // Passe au menu de sauvegarde
-                RefreshMenu = 1; // Besoin de rafraîchir
-                S9ClearOK(); // Réinitialise
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_AMPL_EDIT: // État d'édition de l'amplitude
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_AMPL_EDIT); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                pParam->Amplitude += 100; // Incrémente de 100 mV
-                if (pParam->Amplitude > 10000) { // Si dépasse 10 000 mV
-                    pParam->Amplitude = 0; // Reboucle à 0
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                pParam->Amplitude -= 100; // Décrémente de 100 mV
-                if (pParam->Amplitude < 0) { // Si on passe en dessous de 0
-                    pParam->Amplitude = 10000; // Reboucle à 10 000 mV
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise
-            }
-            if (Pec12IsOK()) { // Appui court (validation)
-                menu = MENU_AMPL_SEL; // Retour au mode sélection
-                GENSIG_UpdateSignal(pParam);
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise
-            }
-            if (Pec12IsESC()) { // Appui long (annulation)
-                menu = MENU_AMPL_SEL; // Retour à la sélection
-                pParam->Amplitude = pParamSave.Amplitude; // Restaure la valeur précédente
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearESC(); // Réinitialise
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_OFFSET_SEL: // État de sélection de l'offset
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_OFFSET_SEL); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                menu = MENU_FORME_SEL; // Passe à la sélection de la forme
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                menu = MENU_AMPL_SEL; // Retourne à la sélection de l'amplitude
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise
-            }
-            if (Pec12IsOK()) { // Appui court
-                menu = MENU_OFFSET_EDIT; // Passe en édition de l'offset
-                pParamSave = *pParam; // Sauvegarde temporaire
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise
-            }
-            if (S9IsOK()) { // Appui sur S9
-                menu = MENU_SAUVEGARDE; // Passe au menu de sauvegarde
-                RefreshMenu = 1; // Besoin de rafraîchir
-                S9ClearOK(); // Réinitialise
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_OFFSET_EDIT: // État d'édition de l'offset
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_OFFSET_EDIT); // Redessine l'écran
-            }
-            if (Pec12IsPlus()) { // Rotation incrément
-                pParam->Offset += 100; // Incrémente de 100 mV
-                if (pParam->Offset > 5000) {
-                    pParam->Offset = 5000; // Bascule du max au min
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearPlus(); // Réinitialise
-            }
-            if (Pec12IsMinus()) { // Rotation décrément
-                pParam->Offset -= 100; // Décrémente de 100 mV
-                if (pParam->Offset < -5000) {
-                    pParam->Offset = -5000; // Bascule du min au max  
-                }
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearMinus(); // Réinitialise
-            }
-            if (Pec12IsOK()) { // Appui court (validation)
-                menu = MENU_OFFSET_SEL; // Retour à la sélection
-                GENSIG_UpdateSignal(pParam);
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK(); // Réinitialise
-            }
-            if (Pec12IsESC()) { // Appui long (annulation)
-                menu = MENU_OFFSET_SEL; // Retour à la sélection
-                pParam->Offset = pParamSave.Offset; // Restaure la valeur précédente
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearESC(); // Réinitialise
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_SAUVEGARDE: // État proposant la sauvegarde
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                MENU_Display(pParam, MENU_SAUVEGARDE); // Affiche l'écran de sauvegarde
-            }
-            // Si appui long sur S9 (ESC), on valide la sauvegarde
-            if (S9IsESC()) {
-                menu = MENU_SAVEINFO; // Va afficher le résultat
-                saveOk = 1; // Indique la sauvegarde validée
-                RefreshMenu = 1; // Besoin de rafraîchir
-                S9ClearESC(); // Réinitialise l'événement
-                S9ClearOK(); // Au cas où un OK reste actif
-            }                // Sinon, toute autre action (Plus, Minus, OK) annule la sauvegarde
-            else if ((Pec12IsPlus()) || (Pec12IsESC()) || (Pec12IsMinus()) || (Pec12IsOK())) {
-                menu = MENU_SAVEINFO; // Va afficher le résultat
-                saveOk = 0; // Indique la sauvegarde annulée
-                RefreshMenu = 1; // Besoin de rafraîchir
-                Pec12ClearOK();
-                Pec12ClearESC();
-                Pec12ClearMinus();
-                Pec12ClearPlus();
-            }
-            break;
-
-            // -------------------------------------------------------------------
-        case MENU_SAVEINFO: // État d'affichage du résultat de la sauvegarde
-            if (RefreshMenu == 1) {
-                RefreshMenu = 0; // Réinitialise le flag
-                ClearLcd(); // Efface l'écran
-                if (saveOk == 1) {
-                    lcd_gotoxy(2, 3); // Positionne le curseur
-                    NVM_WriteBlock((uint32_t*) pParam, sizeof (S_ParamGen)); // Écriture en NVM
-                    printf_lcd("Sauvegarde OK"); // Indique la réussite de la sauvegarde
-                } else {
-                    lcd_gotoxy(2, 3); // Positionne le curseur
-                    printf_lcd("Sauvegarde ANNULEE!"); // Indique l'annulation
-                }
-            }
-            // Incrémente le compteur de temporisation
-            wait2s++;
-            // Après 2 secondes (200 x 10 ms), on retourne au menu forme
-            if (wait2s == 200) {
-                menu = MENU_FORME_SEL; // Retourne à la sélection de la forme
-                RefreshMenu = 1; // Besoin de rafraîchir
-            }
-            break;
-        default:
-            // Formes non prise en compte
-            break;
-
+void MENU_Execute(S_ParamGen *pParam, bool local)
+{
+    static uint8_t etat = SELECTFORME;
+    static uint8_t ancienEtat = SELECTFORME;
+    static uint8_t attenteSave = 0;
+    static uint8_t editionMode = 0;
+    static char carEdit = '?';
+    static char car = '*';
+    static S_ParamGen valTmp;
+    static uint8_t premiere = 1;
+    static uint16_t compteurUSB;
+    
+    // Si une requête USB est en attente, on force l'état SAVEUSB
+    if (saveUSBRequest == 1)
+    {
+        saveUSBRequest = 0;
+        etat = SAVEUSB;
     }
+    
+    // Si USB est actif (local == false), on bloque toute interaction SAUF si on est en état SAVEUSB
+    if (!local && etat != SAVEUSB)
+    {
+        lcd_gotoxy(1, 1);
+        printf_lcd("#Forme = %10s", forme[pParam->Forme]);
+
+        lcd_gotoxy(1, 2);
+        printf_lcd("#Freq [Hz] = %4d", pParam->Frequence);
+
+        lcd_gotoxy(1, 3);
+        printf_lcd("#Ampl [mV] = %5d", pParam->Amplitude);
+
+        lcd_gotoxy(1, 4);
+        printf_lcd("#Offset[mV]= %5d", pParam->Offset);
+
+        // verrouille toute interaction
+        Pec12ClearOK();
+        Pec12ClearESC();
+        Pec12ClearMinus();
+        Pec12ClearPlus();
+        S9ClearOK();
+        S9ClearESC();
+        editionMode = 0;
+        return;
+    }
+
+    // Init : éviter d'effacer l'écran pendant le SAVEUSB
+    if (premiere && etat != SAVEUSB)
+    {
+        MENU_Initialize(pParam,false);
+        valTmp = *pParam;
+        premiere = 0;
+    }
+
+    // Si on change de ligne sélectionnée : efface les anciens symboles
+    if ((ancienEtat != etat) && ((ancienEtat % 2 == 1) || (etat % 2 == 1)))
+    {
+        lcd_gotoxy(1, 1); printf_lcd(" ");
+        lcd_gotoxy(1, 2); printf_lcd(" ");
+        lcd_gotoxy(1, 3); printf_lcd(" ");
+        lcd_gotoxy(1, 4); printf_lcd(" ");
+    }
+    ancienEtat = etat;
+
+    car = (editionMode) ? carEdit : '*';
+
+    if (!editionMode)
+    {
+        if (etat != SAVEMODE)
+        {
+            if (etat != SAVEUSB)
+            {
+                lcd_gotoxy(2, 1);
+                printf_lcd("Forme = %10s", forme[pParam->Forme]);
+
+                lcd_gotoxy(2, 2);
+                printf_lcd("Freq [Hz] = %4d", pParam->Frequence);
+
+                lcd_gotoxy(2, 3);
+                printf_lcd("Ampl [mV] = %5d", pParam->Amplitude);
+
+                lcd_gotoxy(2, 4);
+                printf_lcd("Offset[mV]= %5d", pParam->Offset);
+            }
+
+            if (S9IsOK())
+            {
+                S9ClearOK(); S9ClearESC();
+                etat = SAVEMODE;
+            }
+
+            if (Pec12IsOK())
+            {
+                Pec12ClearOK();
+                editionMode = 1;
+                etat += 1;
+                car = carEdit;
+            }
+
+            if (Pec12IsPlus())
+            {
+                Pec12ClearPlus();
+                etat = (etat >= SELECTOFFSET) ? SELECTFORME : etat + 2;
+            }
+
+            if (Pec12IsMinus())
+            {
+                Pec12ClearMinus();
+                etat = (etat <= SELECTFORME) ? SELECTOFFSET : etat - 2;
+            }
+        }
+    }
+    else
+    {
+        if (etat != SAVEUSB)
+        {
+            lcd_gotoxy(2, 1);
+            printf_lcd("Forme = %10s", forme[valTmp.Forme]);
+
+            lcd_gotoxy(2, 2);
+            printf_lcd("Freq [Hz] = %4d", valTmp.Frequence);
+
+            lcd_gotoxy(2, 3);
+            printf_lcd("Ampl [mV] = %5d", valTmp.Amplitude);
+
+            lcd_gotoxy(2, 4);
+            printf_lcd("Offset[mV]= %5d", valTmp.Offset);
+        }
+
+        if (Pec12IsOK())
+        {
+            Pec12ClearOK();
+            *pParam = valTmp;
+            etat -= 1;
+            editionMode = 0;
+            car = '*';
+        }
+
+        if (Pec12IsESC())
+        {
+            Pec12ClearESC();
+            valTmp = *pParam;
+            etat -= 1;
+            editionMode = 0;
+            car = '*';
+        }
+
+        if (Pec12IsPlus())
+        {
+            Pec12ClearPlus();
+            switch (etat)
+            {
+                case REGLAGEFORME:
+                    valTmp.Forme = (valTmp.Forme + 1) % 4;
+                    break;
+                case REGLAGEFREQUENCE:
+                    valTmp.Frequence = (valTmp.Frequence < FREQUENCE_MAX) ?
+                                       valTmp.Frequence + PAS_FREQUENCE : FREQUENCE_MIN;
+                    break;
+                case REGLAGEAMPLITUDE:
+                    valTmp.Amplitude = (valTmp.Amplitude < AMPLITUDE_MAX) ?
+                                        valTmp.Amplitude + PAS_AMPLITUDE : AMPLITUDE_MIN;
+                    break;
+                case REGLAGEOFFSET:
+                    if (valTmp.Offset < OFFSET_MAX) valTmp.Offset += PAS_OFFSET;
+                    break;
+            }
+        }
+
+        if (Pec12IsMinus())
+        {
+            Pec12ClearMinus();
+            switch (etat)
+            {
+                case REGLAGEFORME:
+                    valTmp.Forme = (valTmp.Forme > 0) ? valTmp.Forme - 1 : 3;
+                    break;
+                case REGLAGEFREQUENCE:
+                    valTmp.Frequence = (valTmp.Frequence > FREQUENCE_MIN) ?
+                                       valTmp.Frequence - PAS_FREQUENCE : FREQUENCE_MAX;
+                    break;
+                case REGLAGEAMPLITUDE:
+                    valTmp.Amplitude = (valTmp.Amplitude > AMPLITUDE_MIN) ?
+                                       valTmp.Amplitude - PAS_AMPLITUDE : AMPLITUDE_MAX;
+                    break;
+                case REGLAGEOFFSET:
+                    if (valTmp.Offset > OFFSET_MIN) valTmp.Offset -= PAS_OFFSET;
+                    break;
+            }
+        }
+    }
+
+    switch(etat)
+    {
+        /////       FORME       /////
+        case SELECTFORME :
+            lcd_gotoxy(1,1);
+            printf_lcd("%c", car);
+            break;
+        case REGLAGEFORME :
+            lcd_gotoxy(1,1);
+            printf_lcd("%c", car);            
+            break;
+        /////       FREQUENCE       /////   
+        case SELECTFREQUENCE:
+            lcd_gotoxy(1,2);
+            printf_lcd("%c", car);
+            break;
+        case REGLAGEFREQUENCE :
+            lcd_gotoxy(1,2);
+            printf_lcd("%c", car);
+
+            break;
+        /////       AMPLITUDE       /////     
+        case SELECTAMPLITUDE :
+            lcd_gotoxy(1,3);
+            printf_lcd("%c", car);
+            break;
+        case REGLAGEAMPLITUDE :
+            lcd_gotoxy(1,3);
+            printf_lcd("%c", car);
+
+            break;
+        /////       OFFSET       /////     
+        case SELECTOFFSET :
+            lcd_gotoxy(1,4);
+            printf_lcd("%c", car);
+            break;    
+        case REGLAGEOFFSET :
+            lcd_gotoxy(1,4);
+            printf_lcd("%c", car);  
+            break;
+
+        case SAVEMODE:
+            if(S9IsESC())
+            {
+                attenteSave++;
+                pParam->Magic = MAGIC;  
+                //I2C_WriteSEEPROM((uint32_t*)pParam, 0x00, sizeof(S_ParamGen));
+                //delay_msCt(5);
+                lcd_ClearLine(2);
+                lcd_ClearLine(3);
+                lcd_gotoxy(1,2);
+                printf_lcd("    Sauvegarde OK");
+
+
+            }
+
+            else if(Pec12IsESC() || Pec12IsPlus() || Pec12IsMinus() || S9IsOK())
+            {
+                attenteSave++;
+                lcd_gotoxy(1,2);
+                printf_lcd(" Sauvegarde annulée ");
+            }
+            if(attenteSave > 0)
+            {
+                attenteSave++;
+                if(attenteSave > 200)
+                {
+                    MENU_Initialize(pParam,false);
+                    attenteSave = 0;
+                    etat = SELECTFORME;
+                }
+            }
+            else
+            {
+                lcd_ClearLine(1);
+                lcd_ClearLine(4);
+                lcd_gotoxy(1,2);
+                printf_lcd("    Sauvegarde ?    ");
+                lcd_gotoxy(1,3);
+                printf_lcd("    (Appui long)    "); 
+            }
+            break;
+        case SAVEUSB :
+            if (compteurUSB == 0)
+            {
+                MENU_DemandeSave();        // Affiche "Sauvegarde OK"
+            }
+
+            compteurUSB++;
+
+            if (compteurUSB >= 1000)       // 1000 × 2 ms = 2 secondes (si appel toutes les 2 ms)
+            {
+                compteurUSB = 0;
+                etat = SELECTFORME;
+                MENU_Initialize(pParam,false);
+            }
+            break;
+                
+
+   
+        }
 }

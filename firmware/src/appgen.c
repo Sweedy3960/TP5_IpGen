@@ -208,7 +208,7 @@ void APPGEN_Tasks(void) {
             Pec12Init();
 
             // Initialisation du menu
-            MENU_Initialize(&LocalParamGen);
+            MENU_Initialize(&LocalParamGen,false);
 
             // Initialisation du g?n?rateur
             GENSIG_Initialize(&LocalParamGen);
@@ -231,8 +231,8 @@ void APPGEN_Tasks(void) {
             
             
             
-            appgenData.rxSize = 64;
-            appgenData.txSize = 64;
+            appgenData.rxSize = 32;
+            appgenData.txSize = 32;
 
             // Passe ? l'?tat d'attente init
             appgenData.state = APPGEN_STATE_INIT_WAIT;
@@ -258,7 +258,7 @@ void APPGEN_Tasks(void) {
             // Bascule une LED (LED_2) pour indiquer un cycle de service
             
             BSP_LEDToggle(BSP_LED_2);
-            APP_UpdateTCPData(appgenData.RxBuffer, appgenData.rxSize);
+        APP_UpdateTCPData(appgenData.RxBuffer, appgenData.rxSize);
             if(appgenData.remote == REMOTE_ON)
             {
                 if (appgenData.newData)
@@ -275,13 +275,15 @@ void APPGEN_Tasks(void) {
                        {
                            ret = 0;
                        }
+                       MENU_Execute(&RemoteParamGen, false);
                    }
-                MENU_Execute(&RemoteParamGen);
+                
             }
             else
             {
               // Ex?cute le menu
-                MENU_Execute(&LocalParamGen);  
+               
+                MENU_Execute(&RemoteParamGen, true);
             }
             
 
@@ -364,7 +366,7 @@ void APPGEN_Tasks(void) {
 // Fonction d'envoi d'un  message
 // Rempli le tampon d'émission pour USB en fonction des paramètres du générateur
 // Format du message
-// !S=TF=0020A=0100O=+5000D=25WP=0#
+// !S=TF=0020A=0100O=+5000D=25W=0#
 // !S=TF=2000A=10000O=+5000D=25WP=1#    // ack sauvegarde
  
  

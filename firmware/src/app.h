@@ -119,7 +119,7 @@ typedef struct
     TCP_SOCKET              socket;
     TCP_OPTION_KEEP_ALIVE_DATA keepAlive ;
     bool newTxData;
-    uint8_t SendBuffer[64];
+    uint8_t SendBuffer[32];
 } APP_DATA;
 
 typedef enum

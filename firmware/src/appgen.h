@@ -121,8 +121,8 @@ typedef struct
 
     /* TODO: Define any additional data used by the application. */
     uint8_t remote;
-    uint8_t TxBuffer[64];
-    uint8_t RxBuffer[64];
+    uint8_t TxBuffer[32];
+    uint8_t RxBuffer[32];
     uint8_t rxSize;
     uint8_t txSize;   
     bool SaveTodo;

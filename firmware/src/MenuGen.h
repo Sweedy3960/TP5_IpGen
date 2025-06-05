@@ -13,6 +13,40 @@
 #include "DefMenuGen.h"  // Structure des param�tres du g�n�rateur (S_ParamGen) et �tats du menu
 
 
+#define SELECTFORME       1
+#define REGLAGEFORME      2
+#define SELECTFREQUENCE   3
+#define REGLAGEFREQUENCE  4
+#define SELECTAMPLITUDE   5
+#define REGLAGEAMPLITUDE  6
+#define SELECTOFFSET      7
+#define REGLAGEOFFSET     8
+#define SAVEMODE          9  // État spécial pour gérer la sauvegarde
+#define SAVEUSB           10
+
+//========================================================
+// Paramétrage de la fréquence
+//========================================================
+#define PAS_FREQUENCE  20    // Incrément ou décrément en Hz
+#define FREQUENCE_MAX  2000  // Fréquence maximale en Hz
+#define FREQUENCE_MIN  20    // Fréquence minimale en Hz
+
+//========================================================
+// Paramétrage de l’amplitude
+//========================================================
+#define PAS_AMPLITUDE  100   // Incrément ou décrément en mV
+#define AMPLITUDE_MAX  10000 // Amplitude maximale en mV
+
+
+//========================================================
+// Paramétrage de l’offset
+//========================================================
+#define PAS_OFFSET     100   // Incrément ou décrément en mV
+#define OFFSET_MAX     5000  // Offset maximal en mV
+#define OFFSET_MIN    -5000  // Offset minimal en mV
+
+
+// structure 
 
 
  
@@ -31,7 +65,7 @@ void MENU_DemandeSave(void);
  *
  * @param pParam Pointeur vers la structure contenant les param�tres initiaux du g�n�rateur.
  */
-void MENU_Initialize(S_ParamGen *pParam);
+void MENU_Initialize(S_ParamGen *pParam, bool local);
 
 /**
  * @name MENU_Execute
@@ -44,7 +78,7 @@ void MENU_Initialize(S_ParamGen *pParam);
  *
  * @param pParam Pointeur vers la structure de param�tres courants du g�n�rateur.
  */
-void MENU_Execute(S_ParamGen *pParam);
+void MENU_Execute(S_ParamGen *pParam, bool local);
 
 /**
  * @name MENU_Display
