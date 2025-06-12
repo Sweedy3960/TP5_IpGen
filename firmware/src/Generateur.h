@@ -22,6 +22,9 @@
 #define PRESCALER   32          // Prescaler sélectionné pour TMR3
 #define MAX_ECH     100         // Nombre d'échantillons utilisé
 #define MAX_ECH 100  // Nombre d'échantillons par période
+#define CENTER 32767      // Centre du signal
+
+
 
 // Borne la tension en mV dans l'intervalle [-10000, +10000] avant conversion DAC
 #define DAC_MIN  0

@@ -54,8 +54,23 @@ int32_t tb_tabValSig2[MAX_ECH]; // Tableau d'échantillons convertis pour le DAC 
 // Retour     :  aucun
 
 void GENSIG_Initialize(S_ParamGen *pParam) {
-    // Aucune initialisation particulière.
-    // Si nécessaire, on pourrait configurer le Timer ou initialiser d'autres ressources.
+    
+    S_ParamGen temp;
+//    I2C_ReadSEEPROM(&temp, 0x00, sizeof(S_ParamGen));
+    
+    if (temp.Magic == MAGIC) 
+    {
+        *pParam = temp;           // copie les vraies données valides
+    }
+    else 
+    {
+        // Valeurs par défaut
+        pParam->Forme = SignalSinus;
+        pParam->Frequence = 20;
+        pParam->Amplitude = 0;
+        pParam->Offset = 0;
+        pParam->Magic = MAGIC;
+    }
 }
 
 // -------------------------------------------------------------------------------------
@@ -68,18 +83,13 @@ void GENSIG_Initialize(S_ParamGen *pParam) {
 // Retour     :  aucun
 
 void GENSIG_UpdatePeriode(S_ParamGen *pParam) {
-    // Calcul de la fréquence effective du Timer3 (après prescaler)
-    uint32_t timerFreq = F_SYS / PRESCALER;
-
-    // Fréquence d'échantillonnage nécessaire (nombre d'interruptions par seconde)
-    uint32_t sampleRate = (uint32_t) pParam->Frequence * MAX_ECH;
-
-    // Calcul de la période en ticks du Timer3 avec arrondi
-    // On ajoute la moitié du sampleRate pour obtenir un arrondi classique
-    uint16_t periode = (uint16_t) ((timerFreq + (sampleRate / 2)) / sampleRate) - 1;
-
-    // Mise à jour du registre de période du Timer3 via la PLIB
-    PLIB_TMR_Period16BitSet(TMR_ID_3, periode);
+    if (pParam->Frequence == 0) return; // Ã‰vite la division par zÃ©ro
+ 
+    uint32_t nbr_ech = MAX_ECH * pParam->Frequence;      
+    uint32_t frequ_presc = F_SYS / PRESCALER;             
+    uint32_t Periode = frequ_presc / nbr_ech;            
+ 
+    PLIB_TMR_Period16BitSet(TMR_ID_3, Periode);
 }
 
 

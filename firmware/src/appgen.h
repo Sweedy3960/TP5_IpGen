@@ -127,7 +127,9 @@ typedef struct
     uint8_t txSize;   
     bool SaveTodo;
     bool newData;
-
+    uint16_t AppDelay;
+    bool APP_DelayTimeIsRunning;
+    uint16_t aaaaaaaa;
 } APPGEN_DATA;
 
 typedef enum
@@ -221,6 +223,9 @@ void APP_SET_REMOTE(uint8_t state);
 bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo);
 void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, bool *Saved );
 void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size);
+void APP_GEN_SET_DELAY(bool * flag_delay_running);
+void APP_WaitStart(uint16_t waitingTime_ms);
+void APP_TIMERWAIT_1MS_CALLBACK(void);
 /*******************************************************************************
   Function:
     void APPGEN_Tasks ( void )

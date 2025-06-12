@@ -55,8 +55,11 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 
 #include "app.h"
 #include "Mc32DriverLcd.h"
-#define SERVER_PORT 9760
+#include "MenuGen.h"
 
+#define SERVER_PORT 9760
+S_ParamGen LocalParamGen; // Structure locale pour les param?tres du g?n?rateur
+S_ParamGen RemoteParamGen;
 // *****************************************************************************
 // *****************************************************************************
 // Section: Global Data Definitions
@@ -142,7 +145,7 @@ void APP_Tasks ( void )
     IPV4_ADDR           ipAddr;
     int                 i, nNets;
     TCPIP_NET_HANDLE    netH;
-
+  
     SYS_CMD_READY_TO_READ();
     switch(appData.state)
     {
@@ -203,8 +206,10 @@ void APP_Tasks ( void )
                     SYS_CONSOLE_PRINT("%d.%d.%d.%d \r\n", ipAddr.v[0], ipAddr.v[1], ipAddr.v[2], ipAddr.v[3]);
                     //ajout SCA : affichage adr. IP 
                     lcd_gotoxy(1,4);
-                    printf_lcd("IP:%03d.%03d.%03d.%03d ", ipAddr.v[0], ipAddr.v[1], ipAddr.v[2], ipAddr.v[3]);
-                }
+                   
+                    
+                        printf_lcd("IP:%03d.%03d.%03d.%03d ", ipAddr.v[0], ipAddr.v[1], ipAddr.v[2], ipAddr.v[3]);
+                                   }
                 appData.state = APP_TCPIP_OPENING_SERVER;
             }
             break;
@@ -300,11 +305,12 @@ void APP_Tasks ( void )
                 }
 
                 //maj data app
-               // TCPIP_TCP_ArrayGet(appData.socket,&appData.SendBuffer, sizeof(AppBuffer));
+              // TCPIP_TCP_ArrayGet(appData.socket,&appData.SendBuffer, sizeof(AppBuffer));
                 
                 // Transfer the data out of our local processing buffer and into the TCP TX FIFO.
                 SYS_CONSOLE_PRINT("Server Sending %s\r\n", AppBuffer);
-                TCPIP_TCP_ArrayPut(appData.socket, appData.SendBuffer, wCurrentChunk);
+                SendMessage(appData.SendBuffer,&RemoteParamGen,&appData.ipSave);
+                TCPIP_TCP_ArrayPut(appData.socket, (const uint8_t *)&appData.SendBuffer, wCurrentChunk);
                
                
                 // No need to perform any flush.  TCP data in TX FIFO will automatically transmit itself after it accumulates for a while.  If you want to decrease latency (at the expense of wasting network bandwidth on TCP overhead), perform and explicit flush via the TCPFlush() API.
@@ -331,7 +337,7 @@ void APP_UpdateTCPData(uint8_t * newData, uint8_t size)
     memcpy(appData.SendBuffer, newData, size);
 }
 
-void setTCPData(uint8_t *appdata, uint8_t txSize)
+void setTCPData(uint8_t *appdata, uint8_t txSize,bool *SaveToDo)
 {
     static uint8_t i = 0;
     appData.newTxData = true;
@@ -340,6 +346,7 @@ void setTCPData(uint8_t *appdata, uint8_t txSize)
     {
         appData.SendBuffer[i] = appdata[i];
     }
+    appData.ipSave = *SaveToDo;
 }
 
 

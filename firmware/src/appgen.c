@@ -85,6 +85,11 @@ S_ParamGen RemoteParamGen;
  * d'initialisation et g?rer la transition d'?tat de l'application.
  */
 void App_Timer1Callback() {
+   
+    //pour 5 sec
+    
+    APP_TIMERWAIT_1MS_CALLBACK();
+    
     LED1_W = !LED1_R; // Inverse l'?tat de LED1_W en se basant sur LED1_R
 
     // Compteur pour les 3 premi?res secondes
@@ -122,6 +127,7 @@ void App_Timer1Callback() {
  * puis ?teint LED0.
  */
 void App_Timer3Callback() { // Force LED0 ? l'?tat bas (active)
+ 
     BSP_LEDOn(BSP_LED_0);
     GENSIG_Execute(); // G?n?re le signal selon les param?tres en cours
     BSP_LEDOff(BSP_LED_0);
@@ -233,7 +239,7 @@ void APPGEN_Tasks(void) {
             
             appgenData.rxSize = 32;
             appgenData.txSize = 32;
-
+         
             // Passe ? l'?tat d'attente init
             appgenData.state = APPGEN_STATE_INIT_WAIT;
             break;
@@ -268,22 +274,26 @@ void APPGEN_Tasks(void) {
                        {
                            SendMessage((int8_t*)appgenData.TxBuffer, &RemoteParamGen, &appgenData.SaveTodo);
 
-                           setTCPData(appgenData.TxBuffer, appgenData.txSize);
+                           setTCPData(appgenData.TxBuffer, appgenData.txSize,(bool*)&appgenData.SaveTodo);
  
                        }
                        else
                        {
                            ret = 0;
                        }
-                       MENU_Execute(&RemoteParamGen, false);
+                       
                    }
-                
+                MENU_Execute(&RemoteParamGen, false);
+                GENSIG_UpdatePeriode(&RemoteParamGen);
+                GENSIG_UpdateSignal(&RemoteParamGen);
             }
             else
             {
               // Ex?cute le menu
                
-                MENU_Execute(&RemoteParamGen, true);
+                MENU_Execute(&LocalParamGen, true);
+                GENSIG_UpdatePeriode(&LocalParamGen);
+                GENSIG_UpdateSignal(&LocalParamGen);
             }
             
 
@@ -366,7 +376,7 @@ void APPGEN_Tasks(void) {
 // Fonction d'envoi d'un  message
 // Rempli le tampon d'émission pour USB en fonction des paramètres du générateur
 // Format du message
-// !S=TF=0020A=0100O=+5000D=25W=0#
+// !S=TF=0020A=0100O=+5000W=0#
 // !S=TF=2000A=10000O=+5000D=25WP=1#    // ack sauvegarde
  
  
@@ -406,6 +416,32 @@ void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size)
     appgenData.newData = true;  
     memcpy(appgenData.RxBuffer, newData, size);
 }
+
+
+void APP_WaitStart(uint16_t waitingTime_ms)
+    {
+ 
+        appgenData.AppDelay = waitingTime_ms - 1;
+        
+        appgenData.APP_DelayTimeIsRunning = 1;
+        while (appgenData.APP_DelayTimeIsRunning)
+        {
+           appgenData.aaaaaaaa ++;
+        }
+    }
+ 
+    void APP_TIMERWAIT_1MS_CALLBACK(void)
+    {
+        if (appgenData.AppDelay > 0)
+        {
+            appgenData.AppDelay--;
+        }
+        else
+        {
+            appgenData.APP_DelayTimeIsRunning = 0;
+        }
+ 
+    }
 
 void MENU_DemandeSave(void)
 {
