@@ -92,12 +92,12 @@ extern "C" {
 #define SYS_PORT_AD1PCFG        ~0xffdf
 #define SYS_PORT_CNPUE          0x98000
 #define SYS_PORT_CNEN           0x0
-#define SYS_PORT_A_TRIS         0x7F0C
-#define SYS_PORT_A_LAT          0x80C0
+#define SYS_PORT_A_TRIS         0xFFFF
+#define SYS_PORT_A_LAT          0x0000
 #define SYS_PORT_A_ODC          0x0000
 
 #define SYS_PORT_B_TRIS         0x0000
-#define SYS_PORT_B_LAT          0x0400
+#define SYS_PORT_B_LAT          0x0000
 #define SYS_PORT_B_ODC          0x0000
 
 #define SYS_PORT_C_TRIS         0xFFFF
@@ -108,7 +108,7 @@ extern "C" {
 #define SYS_PORT_D_LAT          0x0000
 #define SYS_PORT_D_ODC          0x0000
 
-#define SYS_PORT_E_TRIS         0xFFF0
+#define SYS_PORT_E_TRIS         0xFFFF
 #define SYS_PORT_E_LAT          0x0000
 #define SYS_PORT_E_ODC          0x0000
 
@@ -184,6 +184,8 @@ extern "C" {
 #define DRV_MIIM_DRIVER_INDEX               DRV_MIIM_INDEX_0              
 /*** Timer Driver Configuration ***/
 #define DRV_TMR_INTERRUPT_MODE             true
+#define DRV_TMR_INSTANCES_NUMBER           1
+#define DRV_TMR_CLIENTS_NUMBER             1
 
 /*** Timer Driver 0 Configuration ***/
 #define DRV_TMR_PERIPHERAL_ID_IDX0          TMR_ID_2
@@ -196,20 +198,8 @@ extern "C" {
 #define DRV_TMR_PRESCALE_IDX0               TMR_PRESCALE_VALUE_256
 #define DRV_TMR_OPERATION_MODE_IDX0         DRV_TMR_OPERATION_MODE_16_BIT
 #define DRV_TMR_ASYNC_WRITE_ENABLE_IDX0     false
-#define DRV_TMR_POWER_STATE_IDX0            
+#define DRV_TMR_POWER_STATE_IDX0            SYS_MODULE_POWER_RUN_FULL
 
-#define DRV_TMR_PERIPHERAL_ID_IDX1          TMR_ID_4
-#define DRV_TMR_INTERRUPT_SOURCE_IDX1       INT_SOURCE_TIMER_4
-#define DRV_TMR_INTERRUPT_VECTOR_IDX1       INT_VECTOR_T4
-#define DRV_TMR_ISR_VECTOR_IDX1             _TIMER_4_VECTOR
-#define DRV_TMR_INTERRUPT_PRIORITY_IDX1     INT_PRIORITY_LEVEL1
-#define DRV_TMR_INTERRUPT_SUB_PRIORITY_IDX1 INT_SUBPRIORITY_LEVEL0
-#define DRV_TMR_CLOCK_SOURCE_IDX1           DRV_TMR_CLKSOURCE_INTERNAL
-#define DRV_TMR_PRESCALE_IDX1               TMR_PRESCALE_VALUE_2
-#define DRV_TMR_OPERATION_MODE_IDX1         DRV_TMR_OPERATION_MODE_16_BIT
-
-#define DRV_TMR_ASYNC_WRITE_ENABLE_IDX1     false
-#define DRV_TMR_POWER_STATE_IDX1            
 
  
 // *****************************************************************************
@@ -293,7 +283,7 @@ extern "C" {
 
 /*** DHCP Configuration ***/
 #define TCPIP_STACK_USE_DHCP_CLIENT
-#define TCPIP_DHCP_TIMEOUT                          10
+#define TCPIP_DHCP_TIMEOUT                          5
 #define TCPIP_DHCP_TASK_TICK_RATE                   5
 #define TCPIP_DHCP_HOST_NAME_SIZE                   20
 #define TCPIP_DHCP_CLIENT_CONNECT_PORT              68
@@ -346,7 +336,7 @@ extern "C" {
 #define TCPIP_TCP_DELAYED_ACK_TIMEOUT		    		100
 #define TCPIP_TCP_FIN_WAIT_2_TIMEOUT		    		5000
 #define TCPIP_TCP_KEEP_ALIVE_TIMEOUT		    		10000
-#define TCPIP_TCP_CLOSE_WAIT_TIMEOUT		    		1000
+#define TCPIP_TCP_CLOSE_WAIT_TIMEOUT		    		0
 #define TCPIP_TCP_MAX_RETRIES		            		5
 #define TCPIP_TCP_MAX_UNACKED_KEEP_ALIVES			6
 #define TCPIP_TCP_MAX_SYN_RETRIES		        	3

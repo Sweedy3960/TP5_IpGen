@@ -19,7 +19,7 @@
 
 // #define MARKER_READ 1
 
-#include "app.h"
+#include "appgen.h"
 #include "Mc32SpiUtil.h"
 #include "peripheral\SPI\plib_spi.h"
 

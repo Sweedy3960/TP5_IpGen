@@ -16,9 +16,12 @@
 #ifndef Mc32GestSpiDac_H
 #define Mc32GestSpiDac_H
 
+// *****************************************************************************
+// Section: Type Definitions
+// *****************************************************************************
 #include <stdint.h>
 
-// Prototypes des fonctions
+// Prototypes des fonctions du controle du SPI
 void SPI_InitLTC2604(void);
 void SPI_WriteToDac(uint8_t Noch, uint16_t DacVal);
 void SPI_CfgWriteToDac(uint8_t NoCh, uint16_t DacVal);

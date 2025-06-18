@@ -111,26 +111,18 @@ typedef enum
   Remarks:
     Application strings and buffers are be defined outside this structure.
  */
+
 typedef struct
 {
     /* The application's current state */
     APP_STATES state;
- 
+
     TCP_SOCKET              socket;
-    TCP_OPTION_KEEP_ALIVE_DATA keepAlive ;
-    bool ipSave; 
-    bool newTxData;
-    int8_t SendBuffer[32];
+    TCP_OPTION_KEEP_ALIVE_DATA keepAlive;
+    
 } APP_DATA;
 
-typedef enum
-{
-	/* Application's state machine's initial state. */
-    REMOTE_OFF =0,
-    REMOTE_ON =1,        
-	/* TODO: Define states used by the application state machine. */
- 
-} REMOTE_STATES;
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Callback Routines
@@ -178,9 +170,6 @@ typedef enum
 */
 
 void APP_Initialize ( void );
-void APP_UpdateTCPData(uint8_t * newData, uint8_t size);
-void setTCPData(uint8_t *appdata, uint8_t txSize, bool *SaveToDo);
-
 
 
 /*******************************************************************************

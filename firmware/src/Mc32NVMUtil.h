@@ -21,6 +21,9 @@
 #ifndef Mc32NVMUtil_H
 #define Mc32NVMUtil_H
 
+// *****************************************************************************
+// Section: Type Definitions
+// *****************************************************************************
 #include <stdint.h>
 
 /* Row size for pic32mx795 device is 512 bytes */

@@ -1,263 +1,157 @@
-// =====================================================================================
 // Canevas manipulation GenSig avec menu
-// C. HUBER  09/02/2015
 // Fichier Generateur.C
-// Gestion du générateur
-//
-// Prévu pour signal de 40 échantillons
+// Gestion  du générateur
+
+// Prévu pour signal de 40 echantillons
+
 // Migration sur PIC32 30.04.2014 C. Huber
-// =====================================================================================
 
-#include "Generateur.h"     // Définitions des fonctions du générateur (prototypes)
-#include "DefMenuGen.h"     // Définitions générales : structure S_ParamGen, etc.
-#include "Mc32gestSpiDac.h" // Fonctions pour l'envoi de données au DAC (SPI_WriteToDac)
-#include "Mc32NVMUtil.h"    // Fonctions de lecture/écriture mémoire (non utilisées ici)
-#include "system_config.h"  // Configuration système (FREQU_SYS, PRESC_TIM3, etc.)
-#include "Mc32DriverLcd.h"  // Pour l'affichage (facultatif)
 
-// -------------------------------------------------------------------------------------
-// T.P. 2016 : On a 100 échantillons par période (au lieu de 40)
-// -------------------------------------------------------------------------------------
+#include "Generateur.h"
+#include "DefMenuGen.h"
+#include "Mc32gestSpiDac.h"
+#include "system_config.h"
+#include "Mc32NVMUtil.h"
+#include "Mc32DriverLcd.h"
+#include <math.h>
+#include "Mc32NVMUtil.h"
 
-// -------------------------------------------------------------------------------------
-// int32_t SaturateMv(int32_t valMv)
-// -------------------------------------------------------------------------------------
-// Description : Borne la valeur 'valMv' à l'intervalle [-10000, +10000] mV, 
-//               soit -10 V à +10 V avant conversion en code DAC.
-// Paramètres :  valMv : valeur (en millivolts) à saturer
-// Retour     :  la valeur saturée dans [-10000, +10000]
+// Variables globales
+S_ParamGen valeursParamGen;
+int32_t tableauValeursSignal[MAX_ECH];
 
-int32_t SaturateMv(int32_t valMv) {
-    if (valMv < AMPLITUDE_MIN) {
-        return AMPLITUDE_MIN; // Valeur trop basse : on force à -10000 mV
-    }
-    if (valMv > AMPLITUDE_MAX) {
-        return AMPLITUDE_MAX; // Valeur trop haute : on force à +10000 mV
-    }
-    return valMv; // Sinon, on la conserve telle quelle
-}
-
-// -------------------------------------------------------------------------------------
-// Variables globales liées au générateur
-// -------------------------------------------------------------------------------------
-S_ParamGen valParaGen; // Paramètres du générateur (fréquence, amplitude, offset...)
-int32_t tb_tabValSig[MAX_ECH]; // Tableau d'échantillons en mV (saturés à ±10000)
-int32_t tb_tabValSig2[MAX_ECH]; // Tableau d'échantillons convertis pour le DAC [0..65535]
-
-// -------------------------------------------------------------------------------------
-// void GENSIG_Initialize(S_ParamGen *pParam)
-// -------------------------------------------------------------------------------------
-// Description : Initialise le générateur. 
-//               Ici, pas de configuration spécifique : on se contente de savoir 
-//               que l'ISR du Timer3 appellera GENSIG_Execute() pour sortir le signal.
-// Paramètres :  pParam : pointeur vers la structure de param. du générateur (si besoin)
-// Retour     :  aucun
+//----------------------------------------------------------------------------
+//  GENSIG_Initialize
+//  Initialise le générateur à partir des données en NVM ou valeurs par défaut
+//----------------------------------------------------------------------------
 
 void GENSIG_Initialize(S_ParamGen *pParam) {
-    
-    S_ParamGen temp;
-//    I2C_ReadSEEPROM(&temp, 0x00, sizeof(S_ParamGen));
-    
-    if (temp.Magic == MAGIC) 
-    {
-        *pParam = temp;           // copie les vraies données valides
-    }
-    else 
-    {
-        // Valeurs par défaut
+    // Lecture du bloc mémoire sauvé précédemment
+    NVM_ReadBlock((uint32_t*) & valeursParamGen, sizeof (S_ParamGen));
+
+    // Vérification de l'authenticité des données sauvegardées
+    if (valeursParamGen.Magic != MAGIC) {
+        // Cas invalide : utilisation des valeurs par défaut
+        pParam->Amplitude = 10000;
         pParam->Forme = SignalSinus;
         pParam->Frequence = 20;
-        pParam->Amplitude = 0;
-        pParam->Offset = 0;
         pParam->Magic = MAGIC;
+        pParam->Offset = 0;
+    } else {
+        // Cas valide : restauration des données
+        *pParam = valeursParamGen;
     }
 }
 
-// -------------------------------------------------------------------------------------
-// void GENSIG_UpdatePeriode(S_ParamGen *pParam)
-// -------------------------------------------------------------------------------------
-// Description : Calcule la période du Timer3 pour obtenir la fréquence souhaitée.
-//               Le nombre total d'échantillons (MAX_ECH) et le prescaler (PRESC_TIM3)
-//               déterminent le débit d'envoi au DAC, et donc la fréquence de sortie.
-// Paramètres :  pParam->Frequence : la fréquence du signal en Hz
-// Retour     :  aucun
+//----------------------------------------------------------------------------
+//  GENSIG_UpdatePeriode
+//  Met à jour la période d?échantillonnage en fonction de la fréquence
+//----------------------------------------------------------------------------
 
 void GENSIG_UpdatePeriode(S_ParamGen *pParam) {
-    if (pParam->Frequence == 0) return; // Ã‰vite la division par zÃ©ro
- 
-    uint32_t nbr_ech = MAX_ECH * pParam->Frequence;      
-    uint32_t frequ_presc = F_SYS / PRESCALER;             
-    uint32_t Periode = frequ_presc / nbr_ech;            
- 
-    PLIB_TMR_Period16BitSet(TMR_ID_3, Periode);
+    static uint16_t compteurTimer3;
+    // Ajustement du timer en fonction de la fréquence
+    compteurTimer3 = (uint16_t) ((TRANSFORMATION_VALEUR_TIMER3 / pParam->Frequence));
+    PLIB_TMR_Period16BitSet(TMR_ID_3, compteurTimer3);
 }
 
-
-// -------------------------------------------------------------------------------------
-// void GENSIG_UpdateSignal(S_ParamGen *pParam)
-// -------------------------------------------------------------------------------------
-// Description : En fonction de la forme du signal (sinus, triangle, dent de scie, carré),
-//               et des paramètres amplitude / offset, on remplit un tableau 
-//               d'échantillons en mV. Chaque échantillon est borné à [-10000..+10000],
-//               puis converti en code DAC [0..65535] pour la sortie analogique.
-// Paramètres :  pParam->Forme      : type de signal (SignalSinus, etc.)
-//               pParam->Amplitude  : amplitude crête en mV
-//               pParam->Offset     : offset en mV (positif => signal monté)
-// Retour     :  aucun
+//-------------------------------
+// Mise à jour du signal (forme, amplitude, offset)
+// Entrées : Pointeur sur la structure S_ParamGen : pParam
+// Sortie  : -
+//-------------------------------
 
 void GENSIG_UpdateSignal(S_ParamGen *pParam) {
-    uint8_t echantillons; // Index pour parcourir tb_tabValSig
-    uint16_t amplitude = pParam->Amplitude; // amplitude crête en mV
-    int16_t offset = pParam->Offset; // offset en mV (positif => décale vers le haut)
-    uint8_t compt_sig;
+    uint8_t nbEchantillon = 0;
+    uint16_t amplitude = 0;
+    int16_t offset = 0;
 
-    // Tableau pré-calculé du sinus (100 points). Valeurs comprises entre -1.0 et +1.0.
-    const float tbSignalSinus[MAX_ECH] = {
-        0.0000, 0.0628, 0.1253, 0.1874, 0.2487, 0.3090, 0.3681, 0.4258, 0.4818, 0.5358,
-        0.5878, 0.6374, 0.6845, 0.7290, 0.7705, 0.8090, 0.8443, 0.8763, 0.9048, 0.9298,
-        0.9511, 0.9686, 0.9823, 0.9921, 0.9980, 1.0000, 0.9980, 0.9921, 0.9823, 0.9686,
-        0.9511, 0.9298, 0.9048, 0.8763, 0.8443, 0.8090, 0.7705, 0.7290, 0.6845, 0.6374,
-        0.5878, 0.5358, 0.4818, 0.4258, 0.3681, 0.3090, 0.2487, 0.1874, 0.1253, 0.0628,
-        0.0000, -0.0628, -0.1253, -0.1874, -0.2487, -0.3090, -0.3681, -0.4258, -0.4818, -0.5358,
-        -0.5878, -0.6374, -0.6845, -0.7290, -0.7705, -0.8090, -0.8443, -0.8763, -0.9048, -0.9298,
-        -0.9511, -0.9686, -0.9823, -0.9921, -0.9980, -1.0000, -0.9980, -0.9921, -0.9823, -0.9686,
-        -0.9511, -0.9298, -0.9048, -0.8763, -0.8443, -0.8090, -0.7705, -0.7290, -0.6845, -0.6374,
-        -0.5878, -0.5358, -0.4818, -0.4258, -0.3681, -0.3090, -0.2487, -0.1874, -0.1253, -0.0628
-    };
+    // Calcul de l'échelle amplitude et offset
+    amplitude = pParam->Amplitude / 100;
+    offset = pParam->Offset / 2;
 
-    // Choix de la forme du signal en fonction de pParam->Forme
-    switch (pParam->Forme) {
-            // ------------------------------------------------------------------
-            // 1) Forme sinus
-            // ------------------------------------------------------------------
-        case SignalSinus:
-            for (echantillons = 0; echantillons < MAX_ECH; echantillons++) {
-                // Valeur brute en mV : sinus * amplitude - offset
-                // tbSignalSinus[echantillons] est dans [-1..+1]
-                int32_t valMv = (int32_t) (tbSignalSinus[echantillons] * amplitude)
-                        - offset;
-                // On limite la valeur à [-10000..+10000]
-                tb_tabValSig[echantillons] = SaturateMv(valMv);
+    // Parcours de tous les échantillons
+    for (nbEchantillon = 0; nbEchantillon < MAX_ECH; nbEchantillon++) {
+        int32_t valeurBrute = 0; // valeur brute avant écrêtage et conversion
+
+        switch (pParam->Forme) {
+            case SignalSinus:
+            {
+                // Calcul de l'angle en radians pour nbEchantillon
+                float angle = 2 * (float) M_PI * ((float) nbEchantillon / MAX_ECH);
+
+                // On utilise sin(angle) qui varie entre -1 et +1
+                float sinusFloat = sinf(angle) * MOITIE_ECH;
+
+                // application de l'amplitude
+                int32_t sinusScaled = (int32_t) (sinusFloat) * amplitude;
+
+                valeurBrute = (int32_t) (MOITIE_AMPLITUDE - offset) + sinusScaled;
             }
-            break;
+                break;
 
-            // ------------------------------------------------------------------
-            // 2) Forme triangle
-            // ------------------------------------------------------------------
-        case SignalTriangle:
-            // Première moitié du triangle : montée de -amplitude à 0
-            for (compt_sig = 0; compt_sig < (MAX_ECH / 2); compt_sig++) {
-                // Equation pour la montée :
-                //   valMv = (2 * amplitude * compt_sig)/(MAX_ECH/2) - amplitude - offset
-                // * (compt_sig) varie de 0 à (MAX_ECH/2 - 1)
-                // * le terme "2 * amplitude / (MAX_ECH/2)" est la pente
-                // * on soustrait "amplitude" pour partir à -amplitude
-                // * on soustrait offset pour décaler verticalement le signal
-                int32_t valMv =
-                        ((2 * (int32_t) amplitude * compt_sig) / (MAX_ECH / 2))
-                        - amplitude
-                        - offset;
-
-                tb_tabValSig[compt_sig] = SaturateMv(valMv);
-            }
-            // Deuxième moitié du triangle : descente de +amplitude à 0
-            for (compt_sig = (MAX_ECH / 2); compt_sig < MAX_ECH; compt_sig++) {
-                // Equation pour la descente :
-                //   valMv = [ -2 * amplitude * (compt_sig - (MAX_ECH/2)) / (MAX_ECH/2) ] + amplitude - offset
-                //
-                // * "compt_sig - (MAX_ECH/2)" permet de repartir de 0 à la seconde moitié
-                //   (on "réinitialise" l'index pour cette partie)
-                // * "-2 * amplitude" => pente négative
-                // * "+ amplitude" => on part de +amplitude en début de seconde moitié
-                // * "- offset" => décalage vertical
-                int32_t valMv =
-                        ((-2 * (int32_t) amplitude
-                        * (compt_sig - (MAX_ECH / 2)))
-                        / (MAX_ECH / 2))
-                        + amplitude
-                        - offset;
-
-                tb_tabValSig[compt_sig] = SaturateMv(valMv);
-            }
-            break;
-
-            // ------------------------------------------------------------------
-            // 3) Forme dent de scie
-            // ------------------------------------------------------------------
-        case SignalDentDeScie:
-            // Génère un rampement linéaire de -amplitude à +amplitude
-            // sur toute la période (compt_sig = 0..MAX_ECH-1).
-            for (compt_sig = 0; compt_sig < MAX_ECH; compt_sig++) {
-                // valMv = ((amplitude * 2) * compt_sig / MAX_ECH) - amplitude - offset
-                // * (compt_sig) varie de 0..(MAX_ECH-1)
-                // * "2 * amplitude / MAX_ECH" est la pente d'évolution
-                // * "- amplitude" pour démarrer à -amplitude (lorsque compt_sig=0)
-                // * "- offset" pour décaler verticalement
-                int32_t valMv =
-                        (((int32_t) amplitude * 2 * compt_sig) / MAX_ECH)
-                        - amplitude
-                        - offset;
-
-                tb_tabValSig[compt_sig] = SaturateMv(valMv);
-            }
-            break;
-
-            // ------------------------------------------------------------------
-            // 4) Forme carré
-            // ------------------------------------------------------------------
-        case SignalCarre:
-            // Dans un carré, la première moitié des échantillons (0..MAX_ECH/2-1)
-            // est à un niveau haut (amplitude - offset), et la seconde moitié
-            // (MAX_ECH/2..MAX_ECH-1) est à un niveau bas (-amplitude - offset).
-            for (compt_sig = 0; compt_sig < MAX_ECH; compt_sig++) {
-                if (compt_sig < (MAX_ECH / 2)) {
-                    // Crête haute
-                    tb_tabValSig[compt_sig] =
-                            SaturateMv((int32_t) amplitude - offset);
-                }
-                else {
-                    // Crête basse
-                    tb_tabValSig[compt_sig] =
-                            SaturateMv(-(int32_t) amplitude - offset);
+            case SignalTriangle:
+            {
+                // Montée sur la première moitié, descente sur la seconde
+                if (nbEchantillon < (MAX_ECH / 2)) {
+                    valeurBrute = (int32_t) (MOITIE_AMPLITUDE - offset)
+                            + (int32_t) (amplitude * (2 * (nbEchantillon - 25)));
+                } else {
+                    valeurBrute = (int32_t) (MOITIE_AMPLITUDE - offset)
+                            + (int32_t) (amplitude * (100 - 2 * (nbEchantillon - 25)));
                 }
             }
-            break;
+                break;
 
-            // ------------------------------------------------------------------
-            // Forme non prévue 
-            // ------------------------------------------------------------------
-        default:
-            // Au besoin, on pourrait forcer la sortie à zéro
-            break;
-    }
+            case SignalDentDeScie:
+            {
+                // Valeur linéaire sur MAX_ECH points
+                valeurBrute = (int32_t) (MOITIE_AMPLITUDE - offset)
+                        + (int32_t) ((nbEchantillon - 50) * amplitude);
+            }
+                break;
 
-    // -----------------------------
-    // Conversion mV -> DAC
-    // -----------------------------
-    // On mappe l'intervalle [-10000..+10000] mV dans [0..65535].
-    // AMPLITUDE_MIN = -10000, PAS_MAXIMUM = 65535.
-    // Ex. valMv = -10000 => code DAC = 0
-    //     valMv = +10000 => code DAC = 65535
-    for (echantillons = 0; echantillons < MAX_ECH; echantillons++) {
-        tb_tabValSig2[echantillons] =
-                (((tb_tabValSig[echantillons] - AMPLITUDE_MIN) * PAS_MAXIMUM) / 20000);
+            case SignalCarre:
+            {
+                // Hauteur max sur la première moitié, hauteur min sur la seconde
+                if (nbEchantillon < (MAX_ECH / 2)) {
+                    valeurBrute = (int32_t) (MOITIE_AMPLITUDE)
+                            + (int32_t) (amplitude / 2 * (float) MAX_ECH)
+                            - (int32_t) offset;
+                } else {
+                    valeurBrute = (int32_t) (MOITIE_AMPLITUDE)
+                            - (int32_t) ((amplitude / 2 * (float) MAX_ECH) + offset);
+                }
+            }
+                break;
+            default:
+                break;
+        }
+
+        // Écrêtage : borne la valeur entre 0 et MAX_AMPLITUDE
+        if (valeurBrute > MAX_AMPLITUDE) {
+            valeurBrute = MAX_AMPLITUDE;
+        } else if (valeurBrute < 0) {
+            valeurBrute = 0;
+        }
+
+        // Mise à l'échelle finale 0..10000 => 0..VAL_MAX_PAS
+        tableauValeursSignal[nbEchantillon] =
+                (int64_t) ((VAL_MAX_PAS * valeurBrute) / 10000);
     }
 }
 
-// -------------------------------------------------------------------------------------
-// void GENSIG_Execute(void)
-// -------------------------------------------------------------------------------------
-// Description : Fonction généralement appelée dans l'ISR du Timer3. 
-//               À chaque interruption, on envoie l'échantillon courant au DAC,
-//               puis on incrémente l'index pour pointer vers l'échantillon suivant.
-// Paramètres :  aucun
-// Retour     :  aucun
+//----------------------------------------------------------------------------
+//  GENSIG_Execute
+//  Envoie cycliquement chaque échantillon au DAC
+//----------------------------------------------------------------------------
 
 void GENSIG_Execute(void) {
-    static uint16_t EchNb = 0; // Index de l'échantillon en cours, incrémenté à chaque appel
+    static uint16_t EchNb = 0;
 
-    // Envoie la valeur tb_tabValSig2[EchNb] sur le DAC (canal 0)
-    SPI_WriteToDac(0, (uint16_t) tb_tabValSig2[EchNb]);
-    EchNb++; // Passe à l'échantillon suivant
-    EchNb = EchNb % MAX_ECH; // Gére les débordements du nombre d'échantillon
+    // Écriture sur le DAC du prochain échantillon
+    SPI_WriteToDac(0, tableauValeursSignal[EchNb]);
+
+    // Passage à l'échantillon suivant et gestion du débordement
+    EchNb = (uint16_t) ((EchNb + 1) % MAX_ECH);
 }

@@ -55,114 +55,71 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 
 #include "appgen.h"
 #include "Mc32DriverLcd.h"
-#include <stdbool.h>          // Permet l'utilisation du type bool
-#include "app.h"             // Fichier principal de l'application (appData, etc.)
-#include "Mc32DriverLcd.h"   // Gestion de l'affichage LCD
-#include "Mc32gestSpiDac.h"  // Gestion SPI du DAC LTC2604
-#include "MenuGen.h"         // Gestion du menu g?n?rique
-#include "GesPec12.h"        // Gestion du codeur rotatif PEC12
-#include "Generateur.h"      // Gestion du g?n?rateur de signal
-#include "system_definitions.h"
-#include "driver/tmr/drv_tmr_static.h"
+#include "../apps/tcpip/tcpip_tcp_server_TP5_IpGen/firmware/src/system_config/pic32mx_eth_sk2/framework/driver/drv_tmr_static.h"
+#include "Mc32gestSpiDac.h"
+#include "MenuGen.h"
+#include "GesPec12.h"
+#include "Generateur.h"
+#include "Mc32Debounce.h"
+
+// Descripteur des sinaux
+S_SwitchDescriptor DescrS9;
+
+// Structure pour les traitements de S9
+S_Pec12_Descriptor S9;
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Global Data Definitions
 // *****************************************************************************
 // *****************************************************************************
 
-APPGEN_DATA appgenData; // Structure globale contenant l'?tat de l'application
-S_ParamGen LocalParamGen; // Structure locale pour les param?tres du g?n?rateur
+// *****************************************************************************
+/* Application Data
+
+  Summary:
+    Holds application data
+
+  Description:
+    This structure holds the application's data.
+
+  Remarks:
+    This structure should be initialized by the APP_Initialize function.
+    
+    Application strings and buffers are be defined outside this structure.
+ */
+
+APPGEN_DATA appgenData;
+APPGEN_IPADDR appgen_ipAddr;
+APPGEN_DATA affichageIP;
+APPGEN_DATA initialisationState;
+
+S_ParamGen LocalParamGen;
 S_ParamGen RemoteParamGen;
+
+APPGEN_DATA appRJ45Stat;
+APPGEN_DATA usbStatSave;
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Callback Functions
 // *****************************************************************************
 // *****************************************************************************
-/**
- * @brief Callback Timer1 (1 ms). G?re des actions p?riodiques, notamment ScanBtn.
- * 
- * Appel? toutes les 1 ms, ce callback va inverser LED1_W, compter un d?lai
- * d'initialisation et g?rer la transition d'?tat de l'application.
+
+/* TODO:  Add any necessary callback functions.
  */
-void App_Timer1Callback() {
-   
-    //pour 5 sec
-    
-    APP_TIMERWAIT_1MS_CALLBACK();
-    
-    LED1_W = !LED1_R; // Inverse l'?tat de LED1_W en se basant sur LED1_R
-
-    // Compteur pour les 3 premi?res secondes
-    static uint16_t WaitIteration = 0; // Variable statique qui conserve sa valeur entre appels
-    static uint8_t InitDone = 0; // Flag pour indiquer si l'init est termin?e
-
-    // Lecture des signaux du codeur PEC12 et du bouton S9 (S_OK)
-    ScanBtn(PEC12_A, PEC12_B, PEC12_PB, S_OK);
-
-    // Pendant les 3 premi?res secondes, on incr?mente WaitIteration
-    if ((WaitIteration <= WAIT_INIT) && (InitDone == 0)) {
-        WaitIteration++; // Incr?mente le compteur d'attente
-    } else {
-        // Si on est toujours dans l'?tat d'attente d'init (APPGEN_INIT_WAIT)
-        if (appgenData.state == APPGEN_STATE_INIT_WAIT) {
-            APPGEN_UpdateState(APPGEN_STATE_INIT_CLEAR); // Change l'?tat de l'application
-            WaitIteration = 0; // R?initialise le compteur
-            InitDone = 1; // Note que l'init est termin?e
-        } else {
-            // Une fois l'init termin?e, on ex?cute p?riodiquement le SERVICE_TASKS
-            if (WaitIteration >= 10) {
-                WaitIteration = 0; // Reset du compteur
-                APPGEN_UpdateState(APPGEN_STATE_SERVICE_TASKS); // Demande ex?cution des t?ches
-            } else {
-                WaitIteration++; // Incr?mente jusqu'? 10 pour la prochaine ex?cution
-            }
-        }
-    }
-}
-
-/**
- * @brief Callback Timer3. G?re l'ex?cution du g?n?rateur de signal.
- * 
- * Appel? p?riodiquement, ce callback allume LED0, ex?cute la g?n?ration de signal,
- * puis ?teint LED0.
- */
-void App_Timer3Callback() { // Force LED0 ? l'?tat bas (active)
- 
-    BSP_LEDOn(BSP_LED_0);
-    GENSIG_Execute(); // G?n?re le signal selon les param?tres en cours
-    BSP_LEDOff(BSP_LED_0);
-}
-
 
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Local Functions
 // *****************************************************************************
 // *****************************************************************************
-/**
- * @brief Nettoie l'?cran LCD en effa?ant chacune des lignes 1 ? 4.
- * 
- * @details Cette fonction appelle `lcd_ClearLine()` pour les 4 lignes du LCD,
- *          afin de supprimer tout affichage courant avant de r??crire des
- *          informations.
+
+
+/* TODO:  Add any necessary local functions.
  */
-void ClearLcd() {
-    lcd_ClearLine(1); // Efface la ligne 1
-    lcd_ClearLine(2); // Efface la ligne 2
-    lcd_ClearLine(3); // Efface la ligne 3
-    lcd_ClearLine(4); // Efface la ligne 4
-}
-/**
- * @brief Met ? jour l'?tat de l'application.
- * 
- * @param NewState Le nouvel ?tat ? appliquer ? l'application.
- * 
- * @details Cette fonction permet de forcer le passage d'un ?tat ? un autre
- *          depuis d'autres parties du code (ex: Timer1Callback).
- */
-void APPGEN_UpdateState(APPGEN_STATES NewState) {
-    appgenData.state = NewState; // Affecte le nouvel ?tat
-}
+
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Initialization and State Machine Functions
@@ -177,17 +134,14 @@ void APPGEN_UpdateState(APPGEN_STATES NewState) {
     See prototype in appgen.h.
  */
 
-void APPGEN_Initialize ( void )
-{
+void APPGEN_Initialize(void) {
     /* Place the App state machine in its initial state. */
-    appgenData.state = APPGEN_STATE_INIT;
+    appgenData.stategen = APPGEN_STATE_INIT;
 
-    
     /* TODO: Initialize your application's state machine and other
      * parameters.
      */
 }
-
 
 /******************************************************************************
   Function:
@@ -198,263 +152,152 @@ void APPGEN_Initialize ( void )
  */
 
 void APPGEN_Tasks(void) {
-    uint16_t ret;
-    // V?rifie l'?tat courant de l'application
-    switch (appgenData.state) {
+    static uint16_t wait5Secondes = 0;
+
+    /* Check the application's current state. */
+    switch (appgenData.stategen) {
+            /* Application's initial state. */
         case APPGEN_STATE_INIT:
         {
-            // Initialisation du LCD
+            // Initialisation et allumage de l'affichage LCD
             lcd_init();
             lcd_bl_on();
 
-            // Initialisation du SPI pour le DAC
+            // Init SPI DAC
             SPI_InitLTC2604();
 
-            // Initialisation du codeur PEC12
+            // Initialisation PEC12 et S9
             Pec12Init();
+            S9Init();
 
-            // Initialisation du menu
-            MENU_Initialize(&LocalParamGen,false);
-
-            // Initialisation du g?n?rateur
+            // Initialisation du generateur
             GENSIG_Initialize(&LocalParamGen);
 
-            // Affichage initial sur l'?cran LCD
+            // 5) On duplique les paramètres locaux pour la partie ?remote?
+            RemoteParamGen = LocalParamGen;
+
+            // Affichage à l'enclechement 
             lcd_gotoxy(1, 1);
-            printf_lcd("TP2 USART 2024-25");
-
+            printf_lcd("TP5 IpGen 2025");
             lcd_gotoxy(1, 2);
-            printf_lcd("acl");
+            printf_lcd("ACL/TCT");
 
-            lcd_gotoxy(1, 3);
-            printf_lcd("tasiiiiiiilllooooo");
+            // mise a jour du signal et de la periode des parametre local
+            GENSIG_UpdateSignal(&LocalParamGen);
+            GENSIG_UpdatePeriode(&LocalParamGen);
 
-            // D?marre les timers TMR0 et TMR1
+            // ajout init drivers timers statiques
             DRV_TMR0_Initialize();
             DRV_TMR1_Initialize();
+
+            // Active les timers 
             DRV_TMR0_Start();
             DRV_TMR1_Start();
-            
-            
-            
-            appgenData.rxSize = 32;
-            appgenData.txSize = 32;
-         
-            // Passe ? l'?tat d'attente init
-            appgenData.state = APPGEN_STATE_INIT_WAIT;
+
+            APPGEN_UpdateState(APPGEN_STATE_WAIT); // Passer à l'état d'attente
+            break;
+        }
+        case APPGEN_STATE_WAIT:
+        {
+            // nothing to do
+            break;
+        }
+        case APPGEN_STATE_SERVICE_TASKS:
+        {
+            // Toggle de la led 2
+            BSP_LEDToggle(BSP_LED_2);
+
+            if (affichageIP.ipState == true) {
+                APPGEN_DisplayStoredIP();
+                if (wait5Secondes >= 500) {
+                    wait5Secondes = 0;
+                    affichageIP.ipState = false;
+                    initialisationState.initialisationMenu = true;
+                }else {
+                    ++wait5Secondes;
+                }
+
+            } else {
+                if (appRJ45Stat.rj45Stat) {
+                    MENU_Execute(&RemoteParamGen, false);
+                    BSP_LEDOn(BSP_LED_5);
+                    BSP_LEDOff(BSP_LED_7);
+                } else {
+                    MENU_Execute(&LocalParamGen, true);
+                    BSP_LEDOff(BSP_LED_5);
+                    BSP_LEDOn(BSP_LED_7);
+                }
+            }
+            // Si on doit sauver les paramètres sur USB, on lance la demande de sauvegarde
+            if (appRJ45Stat.usbStatSave) {
+                MENU_DemandeSave();
+            }
+
+            APPGEN_UpdateState(APPGEN_STATE_WAIT); // Passer à l'état d'attente
             break;
         }
 
-        case APPGEN_STATE_INIT_WAIT:
-            // Rien ? faire de particulier ici, tout est g?r? par le callback Timer1
-            break;
+            /* TODO: implement your application state machine.*/
 
-        case APPGEN_STATE_INIT_CLEAR:
-            // Efface l'?cran LCD une fois l'init termin?e (apr?s 3s)
-            ClearLcd();
-            // Puis passe ? l'?tat d'attente
-            appgenData.state = APPGEN_STATE_WAIT;
-            break;
 
-        case APPGEN_STATE_WAIT:
-            // Etat d'attente : on ne fait rien tant qu'on n'a pas ?t? relanc? par Timer1
-            break;
-
-        case APPGEN_STATE_SERVICE_TASKS:
-            // Bascule une LED (LED_2) pour indiquer un cycle de service
-            
-            BSP_LEDToggle(BSP_LED_2);
-        APP_UpdateTCPData(appgenData.RxBuffer, appgenData.rxSize);
-            if(appgenData.remote == REMOTE_ON)
-            {
-                if (appgenData.newData)
-                   {
-                       ret = GetMessage((int8_t*)appgenData.RxBuffer,&RemoteParamGen,&appgenData.SaveTodo);
-                       if(ret)
-                       {
-                           SendMessage((int8_t*)appgenData.TxBuffer, &RemoteParamGen, &appgenData.SaveTodo);
-
-                           setTCPData(appgenData.TxBuffer, appgenData.txSize,(bool*)&appgenData.SaveTodo);
- 
-                       }
-                       else
-                       {
-                           ret = 0;
-                       }
-                       
-                   }
-                MENU_Execute(&RemoteParamGen, false);
-                GENSIG_UpdatePeriode(&RemoteParamGen);
-                GENSIG_UpdateSignal(&RemoteParamGen);
-            }
-            else
-            {
-              // Ex?cute le menu
-               
-                MENU_Execute(&LocalParamGen, true);
-                GENSIG_UpdatePeriode(&LocalParamGen);
-                GENSIG_UpdateSignal(&LocalParamGen);
-            }
-            
-
-            // Une fois fait, repasse en mode attente
-            appgenData.state = APPGEN_STATE_WAIT;
-            break;
-
+            /* The default state should never be executed. */
         default:
         {
-            // Etat par d?faut (devrait ne jamais arriver).
-            // On peut ?ventuellement y g?rer une erreur syst?me.
+            /* TODO: Handle error in application's state machine. */
             break;
         }
     }
 }
 
-  void APP_SET_REMOTE(uint8_t state)
-{
-    appgenData.remote = state;
- 
+
+//------------------------------------------------------------------------------
+// Mise à jour de l?état de la machine
+//------------------------------------------------------------------------------
+
+void APPGEN_UpdateState(APPGEN_STATES NewState) {
+    appgenData.stategen = NewState; // Change l'état de la machine d'état
 }
 
-  bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo) {
- 
-        //Déclaration de variables
-    char *pt_Forme = 0;
-    char *pt_Frequence = 0;
-    char *pt_Amplitude = 0;
-    char *pt_Offset = 0;
-    char *pt_Sauvegarde = 0;
-    // Recherche des différents paramètres dans le buffer reçu
-    pt_Forme = strstr((char*)USBReadBuffer, "S");
-    pt_Frequence = strstr((char*)USBReadBuffer, "F");
-    pt_Amplitude = strstr((char*)USBReadBuffer, "A");
-    pt_Offset = strstr((char*)USBReadBuffer, "O");
-    pt_Sauvegarde = strstr((char*)USBReadBuffer, "W");
-    // Vérifie si le message commence par '!'
-    if (USBReadBuffer[0] == '!') 
-    {
-        // Identification de la forme du signal
-        switch (*(pt_Forme + 2)) // On pourrait remplacer le décalage 2 par une constante
-        {
-            case 'T':
-                pParam->Forme = SignalTriangle;
-                break;
-            case 'S':
-                pParam->Forme = SignalSinus;
-                break;
-            case 'C':
-                pParam->Forme = SignalCarre;
-                break;
-            case 'D':
-                pParam->Forme = SignalDentDeScie;
-                break;
-            default:
-                break;
-        }
-        // Mise à jour des paramètres à partir du message reçu
-        pParam->Frequence = atoi(pt_Frequence + 2); // Décalage de 2 pour ignorer 'F='
-        pParam->Amplitude = atoi(pt_Amplitude + 2); // Décalage de 2 pour ignorer 'A='
-        pParam->Offset = atoi(pt_Offset + 2); 	    // Décalage de 2 pour ignorer 'O='
-        *SaveTodo = atoi(pt_Sauvegarde + 2); 	    // Décalage de 2 pour ignorer 'W='
-        pParam->Magic =MAGIC;
-        // Si la sauvegarde est demandée, écrire les paramètres dans la SEEPROM
-            if (*SaveTodo == 1)
-            {
-              // I2C_WriteSEEPROM((uint32_t*)pParam, 0x00, sizeof(S_ParamGen));
-               // NVM_WriteBlock((uint32_t*)pParam, sizeof (S_ParamGen));
-              MENU_DemandeSave();
-            }
-        return MESSAGE_VALIDE; 	//La lecture a aboutie
-    }
-    else
-    {
-        return MESSAGE_INVALIDE;	//La lecture a  aboutie
-    }
-} // GetMessage
- 
- 
-// Fonction d'envoi d'un  message
-// Rempli le tampon d'émission pour USB en fonction des paramètres du générateur
-// Format du message
-// !S=TF=0020A=0100O=+5000W=0#
-// !S=TF=2000A=10000O=+5000D=25WP=1#    // ack sauvegarde
- 
- 
-void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, bool *Saved)
-{
-    char formeSignal;   
-    if(pParam->Forme == SignalSinus)
-    {
-        formeSignal = 'S';
-    }
-    else if(pParam->Forme == SignalTriangle)
-    {
-        formeSignal ='T';
-    }
-    else if(pParam->Forme == SignalDentDeScie)
-    {
-        formeSignal = 'D';
-    }
-    else
-    {
-        formeSignal = 'C';
-    }
-    if(pParam->Offset >0)
-    {
-        sprintf((char*)USBSendBuffer,"!S=%cF=%dA=%dO=+%dWP=%d#", formeSignal, pParam->Frequence,pParam->Amplitude, pParam->Offset, *Saved);
-        *Saved = 0;
-    }
-    else
-    {
-        sprintf((char*)USBSendBuffer,"!S=%cF=%dA=%dO=-%dWP=%d#", formeSignal, pParam->Frequence,pParam->Amplitude, pParam->Offset, *Saved);       
-        *Saved = 0;
-    }
-} // SendMessage
+//------------------------------------------------------------------------------
+// Affiche le message ?Sauvegarde USB? pendant ~3 s puis l?efface
+//------------------------------------------------------------------------------
 
-void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size)
-{
-    appgenData.newData = true;  
-    memcpy(appgenData.RxBuffer, newData, size);
+void MENU_DemandeSave(void) {
+    static uint16_t wait3Secondes = 0;
+
+    // On remet l?inactivité de l?encodeur à zéro
+    Pec12ClearInactivity();
+
+    // Affichage du message de sauvegarde
+    lcd_putc('\f');
+    lcd_gotoxy(4, 2);
+    printf_lcd("Sauvegarde USB");
+
+    // Après environ 500 appels (~3 s si TMR déclenche à 6 ms), on efface
+    if (wait3Secondes >= 500) {
+        lcd_putc('\f');
+        appRJ45Stat.usbStatSave = false; // on désactive le flag de sauvegarde
+        wait3Secondes = 0; // on réinitialise le compteur
+    } else {
+        wait3Secondes++; // on incrémente tant qu?on n?a pas atteint 3 s
+    }
 }
 
-
-void APP_WaitStart(uint16_t waitingTime_ms)
-    {
- 
-        appgenData.AppDelay = waitingTime_ms - 1;
-        
-        appgenData.APP_DelayTimeIsRunning = 1;
-        while (appgenData.APP_DelayTimeIsRunning)
-        {
-           appgenData.aaaaaaaa ++;
-        }
-    }
- 
-    void APP_TIMERWAIT_1MS_CALLBACK(void)
-    {
-        if (appgenData.AppDelay > 0)
-        {
-            appgenData.AppDelay--;
-        }
-        else
-        {
-            appgenData.APP_DelayTimeIsRunning = 0;
-        }
- 
-    }
-
-void MENU_DemandeSave(void)
-{
-    uint8_t line;
-    // Nettoyer les lignes 1 à 4 de l'écran LCD
-    for (line = 1; line <= 4; line++) 
-    {
-        lcd_ClearLine(line);
-    }
-
-    lcd_gotoxy(1, 2);          // Positionner le curseur en ligne 2, colonne 1
-    printf_lcd("    Sauvegarde OK");  
+void APPGEN_SetIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3) {
+    appgen_ipAddr.v[0] = ip0;
+    appgen_ipAddr.v[1] = ip1;
+    appgen_ipAddr.v[2] = ip2;
+    appgen_ipAddr.v[3] = ip3;
 }
+
+void APPGEN_DisplayStoredIP(void) {
+    lcd_putc('\f');
+    lcd_gotoxy(7, 2);
+    printf_lcd("Adr. IP");
+    lcd_gotoxy(4, 3);
+    printf_lcd("%d.%d.%d.%d", appgen_ipAddr.v[0], appgen_ipAddr.v[1], appgen_ipAddr.v[2], appgen_ipAddr.v[3]);
+}
+
 /*******************************************************************************
  End of File
  */

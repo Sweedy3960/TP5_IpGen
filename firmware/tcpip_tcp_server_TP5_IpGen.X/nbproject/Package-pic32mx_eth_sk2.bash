@@ -10,9 +10,9 @@ CND_CONF=pic32mx_eth_sk2
 CND_DISTDIR=dist
 TMPDIR=build/${CND_CONF}/${IMAGE_TYPE}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/TP5_IpGeN.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-OUTPUT_BASENAME=TP5_IpGeN.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-PACKAGE_TOP_DIR=tp5ipgen.x/
+OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/tcpip_tcp_server_TP5_IpGen.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+OUTPUT_BASENAME=tcpip_tcp_server_TP5_IpGen.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+PACKAGE_TOP_DIR=tcpiptcpservertp5ipgen.x/
 
 # Functions
 function checkReturnCode
@@ -57,15 +57,15 @@ mkdir -p ${TMPDIR}
 
 # Copy files and create directories and links
 cd "${TOP}"
-makeDirectory ${TMPDIR}/tp5ipgen.x/bin
+makeDirectory ${TMPDIR}/tcpiptcpservertp5ipgen.x/bin
 copyFileToTmpDir "${OUTPUT_PATH}" "${TMPDIR}/${PACKAGE_TOP_DIR}bin/${OUTPUT_BASENAME}" 0755
 
 
 # Generate tar file
 cd "${TOP}"
-rm -f ${CND_DISTDIR}/${CND_CONF}/package/tp5ipgen.x.tar
+rm -f ${CND_DISTDIR}/${CND_CONF}/package/tcpiptcpservertp5ipgen.x.tar
 cd ${TMPDIR}
-tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/tp5ipgen.x.tar *
+tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/tcpiptcpservertp5ipgen.x.tar *
 checkReturnCode
 
 # Cleanup

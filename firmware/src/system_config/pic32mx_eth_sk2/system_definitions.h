@@ -56,8 +56,7 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #include "system/console/sys_console.h"
 #include "system/random/sys_random.h"
 #include "system/tmr/sys_tmr.h"
-#include "driver/tmr/drv_tmr_static.h"
-#include "peripheral/int/plib_int.h"
+#include "driver/tmr/drv_tmr.h"
 #include "system/ports/sys_ports.h"
 #include "system/debug/sys_debug.h"
 #include "system/command/sys_command.h"
@@ -104,7 +103,6 @@ typedef struct
 {
     SYS_MODULE_OBJ  sysTmr;
     SYS_MODULE_OBJ  drvTmr0;
-    SYS_MODULE_OBJ  drvTmr1;
 
     SYS_MODULE_OBJ  sysDebug;
     SYS_MODULE_OBJ  sysConsole0;

@@ -5,10 +5,10 @@
     Microchip Technology Inc.
 
   File Name:
-    appgen.h
+    app.h
 
   Summary:
-    This header file provides prototypes and definitions for the application.
+    Pour Tp3 Menu et generateur de signal .
 
   Description:
     This header file provides function prototypes and data type definitions for
@@ -16,7 +16,7 @@
     "APP_Initialize" and "APP_Tasks" prototypes) and some of them are only used
     internally by the application (such as the "APP_STATES" definition).  Both
     are defined here for convenience.
-*******************************************************************************/
+ *******************************************************************************/
 
 //DOM-IGNORE-BEGIN
 /*******************************************************************************
@@ -46,6 +46,7 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #ifndef _APPGEN_H
 #define _APPGEN_H
 
+
 // *****************************************************************************
 // *****************************************************************************
 // Section: Included Files
@@ -58,28 +59,23 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 #include <stdlib.h>
 #include "system_config.h"
 #include "system_definitions.h"
-#include "DefMenuGen.h"
-
-// DOM-IGNORE-BEGIN
-#ifdef __cplusplus  // Provide C++ Compatibility
-
-extern "C" {
-
-#endif
-// DOM-IGNORE-END 
-// *****************************************************************************
-// *****************************************************************************
-// Section: Definitions
-// *****************************************************************************
-#define WAIT_INIT 2999  // Nombre d'itï¿½rations approximatives pour 3 secondes
+#include "DefMenuGen.h"    
+#include "GesPec12.h"
+#include <stdbool.h>
 
 // *****************************************************************************
 // *****************************************************************************
 // Section: Type Definitions
 // *****************************************************************************
 // *****************************************************************************
+#define WAITFOR3SECONDES 2999
+#define WAITFOR10CYCLES 9
 
+#define PRESSION_LONGUE_S9 499
+
+//#define S9 PORTGbits.RG12
 // *****************************************************************************
+
 /* Application states
 
   Summary:
@@ -88,20 +84,26 @@ extern "C" {
   Description:
     This enumeration defines the valid application states.  These states
     determine the behavior of the application at various times.
-*/
+ */
 
-typedef enum
-{
-        APPGEN_STATE_INIT = 0,
-        APPGEN_STATE_INIT_WAIT = 1,
-        APPGEN_STATE_INIT_CLEAR = 2,
-        APPGEN_STATE_SERVICE_TASKS = 3,
-        APPGEN_STATE_WAIT = 4,
-	/* TODO: Define states used by the application state machine. */
+typedef enum {
+    /* Application's state machine's initial state. */
+    APPGEN_STATE_INIT = 0,
+    APPGEN_STATE_WAIT,
+    APPGEN_STATE_SERVICE_TASKS
+
 } APPGEN_STATES;
 
+typedef struct {
+    uint8_t v[4];
+} APPGEN_IPADDR;
 
+//extern APPGEN_IPADDR appgen_ipAddr; 
+
+void APPGEN_SetIP(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
+void APPGEN_DisplayStoredIP(void);
 // *****************************************************************************
+
 /* Application Data
 
   Summary:
@@ -114,73 +116,38 @@ typedef enum
     Application strings and buffers are be defined outside this structure.
  */
 
-typedef struct
-{
+typedef struct {
     /* The application's current state */
-    APPGEN_STATES state;
+    APPGEN_STATES stategen;
+    bool rj45Stat;
+    bool usbStatSave;
+    bool ipState;
+    bool initialisationMenu; 
 
     /* TODO: Define any additional data used by the application. */
-    uint8_t remote;
-    uint8_t TxBuffer[32];
-    uint8_t RxBuffer[32];
-    uint8_t rxSize;
-    uint8_t txSize;   
-    bool SaveTodo;
-    bool newData;
-    uint16_t AppDelay;
-    bool APP_DelayTimeIsRunning;
-    uint16_t aaaaaaaa;
+
 } APPGEN_DATA;
 
-typedef enum
-
-{
-
-	/* Application's state machine's initial state. */
-
-	MESSAGE_INVALIDE=0,
-
-	MESSAGE_VALIDE=1,
-
-	/* TODO: Define states used by the application state machine. */
-
-} MSG_STATUS;
- 
-
-
+//variable externe
+extern APPGEN_DATA appRJ45Stat;
+extern APPGEN_DATA affichageIP;
+extern APPGEN_DATA usbStatSave;
+extern APPGEN_DATA initialisationState;
+//Structure pour les événements du switch S9
+typedef struct {
+    uint8_t OK : 1; // événement action OK
+    uint8_t ESC : 1; // événement action ESC
+    uint16_t PressDuration; // Pour durée pression du P.B.
+} S_9_Descriptor;
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Callback Routines
 // *****************************************************************************
 // *****************************************************************************
-/**
- * @brief Fonction callback pour le Timer 1.
- *
- * Appelï¿½e lors de chaque interruption du Timer 1. Gï¿½re un compteur pour les premiï¿½res
- * secondes et lance l'exï¿½cution de tï¿½ches aprï¿½s ce dï¿½lai.
+/* These routines are called by drivers when certain events occur.
  */
-void App_Timer1Callback(void);
-/**
- * @brief Callback pour le Timer 3. 
- * @author LMS - TCT
- * @date 2025-01-30
- *
- * @details 
- */
-void App_Timer3Callback();
-// *****************************************************************************
-/* Application Data
 
-  Summary:
-    Holds application data
 
-  Description:
-    This structure holds the application's data.
-
-  Remarks:
-    Application strings and buffers are be defined outside this structure.
- */
-	
 // *****************************************************************************
 // *****************************************************************************
 // Section: Application Initialization and State Machine Functions
@@ -189,7 +156,7 @@ void App_Timer3Callback();
 
 /*******************************************************************************
   Function:
-    void APPGEN_Initialize ( void )
+    void APP_Initialize ( void )
 
   Summary:
      MPLAB Harmony application initialization routine.
@@ -211,24 +178,19 @@ void App_Timer3Callback();
 
   Example:
     <code>
-    APPGEN_Initialize();
+    APP_Initialize();
     </code>
 
   Remarks:
     This routine must be called from the SYS_Initialize function.
-*/
+ */
 
-void APPGEN_Initialize ( void );
-void APP_SET_REMOTE(uint8_t state);
-bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo);
-void SendMessage(int8_t *USBSendBuffer, S_ParamGen *pParam, bool *Saved );
-void APP_GEN_UpdateGenData(uint8_t * newData, uint8_t size);
-void APP_GEN_SET_DELAY(bool * flag_delay_running);
-void APP_WaitStart(uint16_t waitingTime_ms);
-void APP_TIMERWAIT_1MS_CALLBACK(void);
+void APPGEN_Initialize(void);
+
+
 /*******************************************************************************
   Function:
-    void APPGEN_Tasks ( void )
+    void APP_Tasks ( void )
 
   Summary:
     MPLAB Harmony Demo application tasks function
@@ -249,27 +211,33 @@ void APP_TIMERWAIT_1MS_CALLBACK(void);
 
   Example:
     <code>
-    APPGEN_Tasks();
+    APP_Tasks();
     </code>
 
   Remarks:
     This routine must be called from SYS_Tasks() routine.
  */
 
-void APPGEN_Tasks( void );
-
+void APPGEN_Tasks(void);
 void APPGEN_UpdateState(APPGEN_STATES NewState);
+void MENU_DemandeSave(void);
 
-void ClearLcd();
+// Initialisation de S9
+void S9Init(void);
+
+// Scanne du switch S9
+void ScanS9(bool ValS9);
+
+//       S9IsOK         true indique action OK
+bool S9IsOK(void);
+//       S9IsESC        true indique action ESC
+bool S9IsESC(void);
+//       S9ClearOK      annule indication action OK
+void S9ClearOK(void);
+//       S9ClearESC     annule indication action ESC
+void S9ClearESC(void);
+
 #endif /* _APPGEN_H */
-
-//DOM-IGNORE-BEGIN
-#ifdef __cplusplus
-}
-#endif
-//DOM-IGNORE-END
-
 /*******************************************************************************
  End of File
  */
-
