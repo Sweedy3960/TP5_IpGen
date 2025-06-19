@@ -81,14 +81,14 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
  */
 
 APP_DATA appData;
-APPGEN_DATA appRJ45Stat;
+APPGEN_DATA appRJ45Status;
 
 bool SaveTodo = false;
 
 S_ParamGen LocalParamGen;
 S_ParamGen RemoteParamGen;
 APPGEN_IPADDR appgen_ipAddr;
-APPGEN_DATA affichageIP;
+
 
 // *****************************************************************************
 // *****************************************************************************
@@ -189,7 +189,7 @@ void APP_Tasks(void) {
             break;
 
         case APP_TCPIP_WAIT_FOR_IP:
-            appRJ45Stat.rj45Stat = false;
+            appRJ45Status.rj45Stat = false;
             // if the IP address of an interface has changed
             // display the new value on the system console
             nNets = TCPIP_STACK_NumberOfNetworksGet();
@@ -201,7 +201,7 @@ void APP_Tasks(void) {
                 }
                 ipAddr.Val = TCPIP_STACK_NetAddress(netH);
                 if (dwLastIP[i].Val != ipAddr.Val) {
-                    affichageIP.ipState = true;
+                    appRJ45Status.ipState = true;
                     SYS_CONSOLE_MESSAGE(TCPIP_STACK_NetNameGet(netH));
                     SYS_CONSOLE_MESSAGE(" IP Address: ");
                     SYS_CONSOLE_PRINT("%d.%d.%d.%d \r\n", ipAddr.v[0], ipAddr.v[1], ipAddr.v[2], ipAddr.v[3]);
@@ -238,7 +238,7 @@ void APP_Tasks(void) {
                 return;
             } else {
                 // We got a connection
-                appRJ45Stat.rj45Stat = true;
+                appRJ45Status.rj45Stat = true;
                 appData.state = APP_TCPIP_SERVING_CONNECTION;
                 SYS_CONSOLE_MESSAGE("Received a connection\r\n");
             }
@@ -253,7 +253,7 @@ void APP_Tasks(void) {
                 break;
             }
             int16_t wMaxGet, wMaxPut, wCurrentChunk;
-            uint16_t w, w2;
+            uint16_t w;
             uint8_t AppBuffer[32];
             // Figure out how many bytes have been received and how many we can transmit.
             wMaxGet = TCPIP_TCP_GetIsReady(appData.socket); // Get TCP RX FIFO byte count
@@ -275,31 +275,10 @@ void APP_Tasks(void) {
                 // Transfer the data out of the TCP RX FIFO and into our local processing buffer.
                 wCurrentChunk = TCPIP_TCP_ArrayGet(appData.socket, AppBuffer, wCurrentChunk);
                 GetMessage((int8_t*) AppBuffer, &RemoteParamGen, &SaveTodo);
-
-                //                // Perform the "ToUpper" operation on each data byte
-                //                for (w2 = 0; w2 < wCurrentChunk; w2++) {
-                //                    i = AppBuffer[w2];
-                //                    if (i >= 'a' && i <= 'z') {
-                //                        i -= ('a' - 'A');
-                //                        AppBuffer[w2] = i;
-                //                    } else if (i == '\e') //escape
-                //                    {
-                //                        appRJ45Stat.rj45Stat = false;
-                //                        appData.state = APP_TCPIP_CLOSING_CONNECTION;
-                //                        SYS_CONSOLE_MESSAGE("Connection was closed\r\n");
-                //                    }
-                //                }
-
-                if (AppBuffer[0] == '!' && strchr((char*) AppBuffer, '#') != NULL) {
-                    SendMessage((int8_t*) AppBuffer, &RemoteParamGen, SaveTodo);
-                } else {
-                    const char* msg = "mauvaise trame envoyé";
-                    strcpy((char*) AppBuffer, msg);
-                    wCurrentChunk = strlen(msg); // longueur de la chaîne à envoyer
-                }
-
+                
                 // Transfer the data out of our local processing buffer and into the TCP TX FIFO.
                 SYS_CONSOLE_PRINT("Server Sending %s\r\n", AppBuffer);
+                SendMessage((int8_t*) AppBuffer, &RemoteParamGen, SaveTodo);
                 TCPIP_TCP_ArrayPut(appData.socket, AppBuffer, wCurrentChunk);
 
                 // No need to perform any flush.  TCP data in TX FIFO will automatically transmit itself after it accumulates for a while.  If you want to decrease latency (at the expense of wasting network bandwidth on TCP overhead), perform and explicit flush via the TCPFlush() API.
@@ -308,7 +287,7 @@ void APP_Tasks(void) {
             break;
         case APP_TCPIP_CLOSING_CONNECTION:
         {
-            appRJ45Stat.rj45Stat = false;
+            appRJ45Status.rj45Stat = false;
             // Close the socket connection.
             TCPIP_TCP_Close(appData.socket);
             appData.socket = INVALID_SOCKET;

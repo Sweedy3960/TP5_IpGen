@@ -91,14 +91,10 @@ S_Pec12_Descriptor S9;
 
 APPGEN_DATA appgenData;
 APPGEN_IPADDR appgen_ipAddr;
-APPGEN_DATA affichageIP;
-APPGEN_DATA initialisationState;
-
 S_ParamGen LocalParamGen;
 S_ParamGen RemoteParamGen;
+APPGEN_DATA appRJ45Status;
 
-APPGEN_DATA appRJ45Stat;
-APPGEN_DATA usbStatSave;
 
 // *****************************************************************************
 // *****************************************************************************
@@ -207,18 +203,18 @@ void APPGEN_Tasks(void) {
             // Toggle de la led 2
             BSP_LEDToggle(BSP_LED_2);
 
-            if (affichageIP.ipState == true) {
+            if (appRJ45Status.ipState == true) {
                 APPGEN_DisplayStoredIP();
                 if (wait5Secondes >= 500) {
                     wait5Secondes = 0;
-                    affichageIP.ipState = false;
-                    initialisationState.initialisationMenu = true;
+                    appRJ45Status.ipState = false;
+                    appRJ45Status.initialisationMenu = true;
                 }else {
                     ++wait5Secondes;
                 }
 
             } else {
-                if (appRJ45Stat.rj45Stat) {
+                if (appRJ45Status.rj45Stat) {
                     MENU_Execute(&RemoteParamGen, false);
                     BSP_LEDOn(BSP_LED_5);
                     BSP_LEDOff(BSP_LED_7);
@@ -229,7 +225,7 @@ void APPGEN_Tasks(void) {
                 }
             }
             // Si on doit sauver les paramètres sur USB, on lance la demande de sauvegarde
-            if (appRJ45Stat.usbStatSave) {
+            if (appRJ45Status.usbStatSave) {
                 MENU_DemandeSave();
             }
 
@@ -276,7 +272,7 @@ void MENU_DemandeSave(void) {
     // Après environ 500 appels (~3 s si TMR déclenche à 6 ms), on efface
     if (wait3Secondes >= 500) {
         lcd_putc('\f');
-        appRJ45Stat.usbStatSave = false; // on désactive le flag de sauvegarde
+        appRJ45Status.usbStatSave = false; // on désactive le flag de sauvegarde
         wait3Secondes = 0; // on réinitialise le compteur
     } else {
         wait3Secondes++; // on incrémente tant qu?on n?a pas atteint 3 s

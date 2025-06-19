@@ -129,10 +129,10 @@ typedef struct {
 } APPGEN_DATA;
 
 //variable externe
-extern APPGEN_DATA appRJ45Stat;
-extern APPGEN_DATA affichageIP;
+extern APPGEN_DATA appRJ45Status;
+
 extern APPGEN_DATA usbStatSave;
-extern APPGEN_DATA initialisationState;
+
 //Structure pour les événements du switch S9
 typedef struct {
     uint8_t OK : 1; // événement action OK

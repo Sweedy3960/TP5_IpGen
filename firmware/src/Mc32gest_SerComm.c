@@ -64,7 +64,7 @@ bool GetMessage(int8_t *USBReadBuffer, S_ParamGen *pParam, bool *SaveTodo) {
 
     if (*SaveTodo == true) {
         NVM_WriteBlock((uint32_t*) pParam, sizeof (S_ParamGen)); 
-        appRJ45Stat.usbStatSave = true;
+        appRJ45Status.usbStatSave = true;
     }
     return true;
 }

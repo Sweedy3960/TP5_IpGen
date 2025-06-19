@@ -83,7 +83,7 @@ void MENU_Execute(S_ParamGen *pParam, bool local) {
     //  MENU_Execute ? mode « remote » (local == false)
 
     if (local == false) {
-        if (appRJ45Stat.usbStatSave == false) {
+        if (appRJ45Status.usbStatSave == false) {
             if (!isInitializedRemote) {
 
                 //Désactivation PEC12
